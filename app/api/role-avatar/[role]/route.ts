@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { json, localHost, localOrigin } from '../../../../lib/show-store';
+import { authorizeRead, authorizeWrite, json } from '../../../../lib/show-store';
 import { avatarMaxBytes, roleOptions } from '../../../../lib/roles';
 
 export const runtime = 'nodejs';
@@ -25,7 +25,8 @@ function imageType(data: Buffer) {
 }
 
 export async function GET(request: Request, context: Context) {
-  if (!localHost(request)) return json({ error: '请从本机访问' }, 403);
+  const denied = authorizeRead(request);
+  if (denied) return denied;
   const path = await avatarPath(context);
   if (!path) return json({ error: '未找到角色' }, 404);
   try {
@@ -42,7 +43,8 @@ export async function GET(request: Request, context: Context) {
 }
 
 export async function PUT(request: Request, context: Context) {
-  if (!localOrigin(request)) return json({ error: '请在本机导播台操作' }, 403);
+  const denied = authorizeWrite(request);
+  if (denied) return denied;
   const path = await avatarPath(context);
   if (!path) return json({ error: '未找到角色' }, 404);
   const reader = request.body?.getReader();
@@ -77,7 +79,8 @@ export async function PUT(request: Request, context: Context) {
 }
 
 export async function DELETE(request: Request, context: Context) {
-  if (!localOrigin(request)) return json({ error: '请在本机导播台操作' }, 403);
+  const denied = authorizeWrite(request);
+  if (denied) return denied;
   const path = await avatarPath(context);
   if (!path) return json({ error: '未找到角色' }, 404);
   try {

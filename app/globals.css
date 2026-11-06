@@ -112,3 +112,9 @@ button:disabled{opacity:.55}
 .stage-identity .role-portrait{width:clamp(100px,20vw,250px);max-width:35vw}
 .stage-identity.ivory .role-portrait{background:#21180f14;color:#735432}
 @media(max-width:650px){.avatar-grid{grid-template-columns:1fr}.topbar .header-actions{flex-wrap:wrap}}
+.login-form{max-width:420px;margin:0 auto}
+.login-form label{display:grid;gap:7px;color:var(--muted);font-size:14px}
+.login-form input{width:100%;min-height:39px;border:1px solid var(--line);background:#232329;color:var(--cream);border-radius:5px;padding:8px 12px;font:inherit}
+.login-form input:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.login-form .notice{margin:14px 0 0}
+.login-form button{margin-top:16px}
