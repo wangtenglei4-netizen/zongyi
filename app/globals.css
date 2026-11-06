@@ -65,3 +65,50 @@ dialog::backdrop{background:#09080bc9}dialog p{margin:12px 0 20px;color:var(--mu
 @media(max-width:700px){.shell{padding:0 15px}.board{padding:16px}.hero{padding-top:30px}.tile{min-height:100px}.controls,.control-actions{flex-wrap:wrap}.reveal{flex-wrap:wrap}.topbar{min-height:67px}.toggle button,.quiet{padding:6px 7px}.header-actions{gap:4px}.brand{gap:4px;font-size:17px}.brand small{font-size:7px}.brand-mark{font-size:24px}}
 @media(max-width:480px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile{min-height:86px}.tile .emblem{width:44px;height:44px}.topbar{flex-wrap:wrap;padding:8px 0}.controls{align-items:flex-start}.mirror-visual{min-height:225px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+.stage-link{display:inline-flex;align-items:center;color:inherit;text-decoration:none}
+.chapters,.round-tabs{flex-wrap:wrap}
+.operation{min-width:0;margin:0;padding:0;border:0}
+.operator-slots,.round-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.round-tabs button[aria-pressed=true]{border-color:var(--gold);color:var(--gold)}
+.team-fields{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0}
+.team-fields label,.inline-field{display:grid;gap:7px;color:var(--muted);font-size:14px}
+.team-fields input{width:145px;min-height:39px;border:1px solid var(--line);background:#232329;color:var(--cream);border-radius:5px;padding:8px 12px;font:inherit}
+.team-fields input:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.score-form{margin-top:18px;padding-top:4px;border-top:1px solid var(--line)}
+.score-form h3{margin-bottom:8px}
+.score-form .inline-field{margin-top:14px;max-width:200px}
+button:disabled{opacity:.55}
+.tile.taken:disabled{opacity:1}
+.captain-label{align-self:end;padding-bottom:10px;color:var(--gold)}
+.private-answer{color:var(--gold)}
+.stage-shell{padding-bottom:30px}
+.stage-shell .tile{min-height:clamp(100px,20vh,200px)}
+.stage-identity{min-height:40vh;justify-content:center;gap:clamp(15px,4vw,50px);padding:30px}
+.stage-identity h2,.stage-results h2,.stage-team h2{font-size:clamp(28px,4vw,50px)}
+.stage-identity p{font-size:clamp(16px,2.1vw,29px);max-width:34em}
+.stage-identity .emblem{width:clamp(64px,10vw,135px);height:auto}
+.stage-teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.stage-white{background:#e6d9c6;color:#292023}
+.stage-roster{list-style:none;padding:0;margin:18px 0 0;font-size:clamp(18px,2.6vw,36px)}
+.stage-roster li,.stage-roster div{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid #b4a9a166}
+.stage-roster dd{margin:0;color:var(--gold);font-weight:700}
+.badge{font-size:clamp(12px,1.7vw,22px);border:1px solid currentColor;border-radius:4px;padding:3px 7px}
+.stage-results{text-align:center}
+.stage-results .hint{margin:24px 0}
+.stage-total{display:grid;gap:10px;padding:25px 5px;font-size:clamp(20px,4vw,42px)}
+.stage-total strong{font-size:clamp(38px,9vw,120px);font-variant-numeric:tabular-nums;color:var(--gold);overflow-wrap:anywhere}
+
+.avatar-dialog{width:min(92vw,720px);max-height:85vh;overflow:auto}
+.avatar-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.avatar-editor{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:7px;padding:10px}
+.avatar-editor h3{margin:0 0 6px;font-size:15px}
+.avatar-actions{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.avatar-picker{position:relative;display:inline-flex;align-items:center;min-height:34px;cursor:pointer}
+.avatar-picker input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.avatar-picker:focus-within{outline:2px solid var(--gold);outline-offset:3px}
+.role-portrait{display:grid;place-items:center;flex:none;width:64px;aspect-ratio:1;border-radius:8px;overflow:hidden;background:#ffffff0c;color:var(--gold)}
+.role-portrait img{width:100%;height:100%;object-fit:contain}
+.stage-identity .role-portrait{width:clamp(100px,20vw,250px);max-width:35vw}
+.stage-identity.ivory .role-portrait{background:#21180f14;color:#735432}
+@media(max-width:650px){.avatar-grid{grid-template-columns:1fr}.topbar .header-actions{flex-wrap:wrap}}

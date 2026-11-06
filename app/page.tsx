@@ -1,162 +1,255 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createGame, drawCard, identityText, inspectGuest, isValidGame } from '../lib/game.mjs';
-import type { Game, Team } from '../lib/game.mjs';
+import { isValidGame } from '../lib/game.mjs';
+import type { Team } from '../lib/game.mjs';
+import { guestName, guests, members, scoreRounds, teams } from '../lib/show.mjs';
+import type { Action, ScoreRound, Show } from '../lib/show.mjs';
+import { AvatarSettings } from './avatar-settings';
 
-const key = 'zongyi.game.v1';
-const guests = Array.from({ length: 8 }, (_, i) => i + 1);
-const num = (n: number) => String(n).padStart(2, '0');
+const phases = {
+  draw: '身份抽签',
+  captains: '选队长',
+  scores: '队伍分数',
+  mirror: '魔镜问话',
+} satisfies Record<Show['phase'], string>;
 
-function Emblem({ kind = 'card' }: { kind?: 'card' | 'mirror' | 'spy' | 'civilian' }) {
-  return (
-    <svg className={'emblem ' + kind} viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path d="M32 4 60 32 32 60 4 32 32 4Z" stroke="currentColor" opacity=".28"/>
-      <path d="M32 10 54 32 32 54 10 32 32 10Z" stroke="currentColor" opacity=".55"/>
-      {kind === 'mirror' ? <><ellipse cx="32" cy="31" rx="11" ry="15" stroke="currentColor" strokeWidth="1.4"/><path d="m28 33 8-8m-4 12 5-5" stroke="currentColor"/></>
-      : kind === 'spy' ? <><path d="M17 32q15-16 30 0-15 16-30 0Z" stroke="currentColor" strokeWidth="1.5"/><circle cx="32" cy="32" r="4" fill="currentColor"/></>
-      : kind === 'civilian' ? <path d="m32 18 11 5v8c0 7-5 11-11 15-6-4-11-8-11-15v-8l11-5Z" stroke="currentColor" strokeWidth="1.5"/>
-      : <path d="m32 19 4 9 9 4-9 4-4 9-4-9-9-4 9-4 4-9Z" fill="currentColor" opacity=".85"/>}
-    </svg>
-  );
+type Send = (action: Action) => Promise<boolean>;
+
+async function fetchShow(action?: Action): Promise<Show> {
+  const response = await fetch('/api/show', action ? {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(action),
+  } : { cache: 'no-store' });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error ?? '无法读取场次');
+  return data;
 }
 
-export default function Home() {
-  const [game, setGame] = useState<Game | null>(null);
-  const latest = useRef<Game | null>(null);
-  const [mode, setMode] = useState<'stage' | 'private'>('stage');
-  const [phase, setPhase] = useState<'draw' | 'mirror'>('draw');
-  const [guest, setGuest] = useState(1);
-  const [pending, setPending] = useState<number | null>(null);
-  const [identity, setIdentity] = useState<number | null>(null);
-  const [team, setTeam] = useState<Team>('黑');
-  const [target, setTarget] = useState(0);
-  const [mirrorOpen, setMirrorOpen] = useState(false);
+export default function Console() {
+  const [show, setShow] = useState<Show | null>(null);
   const [error, setError] = useState('');
-  const [storageNotice, setStorageNotice] = useState('');
-  const resetDialog = useRef<HTMLDialogElement>(null);
+  const [offline, setOffline] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const reset = useRef<HTMLDialogElement>(null);
 
-  function save(next: Game) {
-    latest.current = next;
-    setGame(next);
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-      setStorageNotice('');
-    } catch {
-      setStorageNotice('当前浏览器无法保存进度，刷新后将开启新局。');
-    }
+  function apply(next: Show) {
+    setShow(previous => !previous || next.revision >= previous.revision ? next : previous);
   }
 
   useEffect(() => {
-    if (latest.current) return;
-    let restored: unknown;
-    try { restored = JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { /* Start a fresh session. */ }
-    const next = isValidGame(restored) ? restored : createGame();
-    save(next);
-    setGuest(guests.find(n => !next.draws.some(d => d.guest === n)) ?? 1);
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function refresh(first = false) {
+      try {
+        let next = await fetchShow();
+        if (first && next.revision === 0) {
+          let old: unknown;
+          try { old = JSON.parse(localStorage.getItem('zongyi.game.v1') ?? 'null'); } catch { /* Keep the new scene. */ }
+          if (isValidGame(old)) {
+            try { next = await fetchShow({ type: 'import-v1', game: old }); }
+            catch { next = await fetchShow(); }
+          }
+        }
+        if (!stopped) {
+          apply(next);
+          setOffline(false);
+        }
+      } catch {
+        if (!stopped) setOffline(true);
+      } finally {
+        if (!stopped) timer = setTimeout(refresh, 500);
+      }
+    }
+    void refresh(true);
+    return () => { stopped = true; clearTimeout(timer); };
   }, []);
 
-  function changeMode(next: 'stage' | 'private') {
-    setMode(next); setIdentity(null); setMirrorOpen(false); setError('');
-  }
-
-  function confirmDraw() {
-    if (!latest.current || pending === null) return;
+  const send: Send = async action => {
+    if (pending.current) return false;
+    pending.current = true;
+    setBusy(true);
+    setError('');
     try {
-      save(drawCard(latest.current, guest, pending));
-      setIdentity(mode === 'private' ? pending : null);
-      setPending(null);
-      setError('');
-    } catch (err) { setError((err as Error).message); }
-  }
+      apply(await fetchShow(action));
+      return true;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '操作失败');
+      return false;
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
 
-  function reset() {
-    save(createGame());
-    setMode('stage'); setPhase('draw'); setGuest(1); setPending(null);
-    setIdentity(null); setTeam('黑'); setTarget(0); setMirrorOpen(false); setError('');
-    resetDialog.current?.close();
-  }
-
-  if (!game) return <main className="loading">镜中局正在准备…</main>;
-  const draw = game.draws.find(d => d.guest === guest);
-  const card = mode === 'private' && identity !== null ? game.cards[identity] : null;
-  const count = game.draws.length;
-  const result = game.mirror[team];
+  if (!show) return <main className="loading">{offline ? '等待连接本地服务…' : '正在加载场次…'}</main>;
+  const identityVisible = show.identityUntil > Date.now();
+  const draw = show.game.draws.find(draw => draw.guest === show.guest);
+  const ready = show.game.draws.length === 8;
+  const captainsReady = teams.every(team => show.captains[team] !== null);
+  const phaseReady = {
+    draw: true, captains: ready, scores: captainsReady,
+    mirror: captainsReady && scoreRounds.every(round => show.roundScores[round]),
+  };
 
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">◇</span><div>镜中局<small>THE MIRROR GAME</small></div></div>
+        <div className="brand"><span className="brand-mark">◇</span>镜中局 · 导播台</div>
         <div className="header-actions">
-          <div className="toggle" aria-label="显示模式">
-            <button aria-pressed={mode === 'stage'} onClick={() => changeMode('stage')}>大屏展示</button>
-            <button aria-pressed={mode === 'private'} onClick={() => changeMode('private')}>私密展示</button>
-          </div>
-          <button className="quiet" onClick={() => resetDialog.current?.showModal()}>重置本局</button>
+          <a className="secondary stage-link" href="/stage" target="_blank" rel="noreferrer">打开舞台大屏 ↗</a>
+          <AvatarSettings disabled={offline || show.identityPending}/>
+          <button className="quiet" disabled={show.identityPending} onClick={() => reset.current?.showModal()}>重置本局</button>
         </div>
       </header>
       <main>
-        <section className="hero" aria-labelledby="title">
-          <div className="eyebrow"><span/> 综艺互动原型 <span/></div>
-          <h1 id="title">{phase === 'draw' ? '身份抽签' : '魔镜查验'}</h1>
-          <p>{phase === 'draw' ? '八位嘉宾，八张身份。选一格，看看你的阵营。' : '队长各有一次提问机会。魔镜只回答选中的嘉宾是否为卧底。'}</p>
+        <section className="hero">
+          <div className="eyebrow"><span/> 现场控制 <span/></div>
+          <h1>{phases[show.phase]}</h1>
+          <p>把舞台大屏窗口移到投屏，导播台留在操作电脑上。</p>
         </section>
-        <div className="chapters">
-          <button aria-pressed={phase === 'draw'} onClick={() => { setPhase('draw'); setMirrorOpen(false); setError(''); }}><b>01</b> 身份抽签</button>
-          <button aria-pressed={phase === 'mirror'} disabled={count !== 8} title={count !== 8 ? '八位嘉宾抽完后开放' : undefined} onClick={() => { setPhase('mirror'); setIdentity(null); setError(''); }}><b>02</b> 魔镜查验 {count !== 8 && <small>待开启</small>}</button>
-        </div>
-        {storageNotice && <p className="notice" role="status">{storageNotice}</p>}
+        <nav className="chapters" aria-label="节目环节">
+          {(Object.keys(phases) as Show['phase'][]).map((phase, index) =>
+            <button key={phase} aria-pressed={show.phase === phase} disabled={busy || offline || show.identityPending || !phaseReady[phase]}
+              onClick={() => void send({ type: 'phase', phase })}><b>0{index + 1}</b> {phases[phase]}</button>
+          )}
+        </nav>
+        {offline && <p className="notice" role="status">与本地服务断开，正在重连。</p>}
         {error && <p className="notice" role="alert">{error}</p>}
-        {phase === 'draw' ? (
-          <>
-            <section className="board" aria-label="八格身份墙">
-              <div className="board-top"><div><span className="kicker">THE DRAFT</span><h2>身份选择墙</h2></div><div className="progress"><b>{num(count)}</b><span> / 08 已抽取</span></div></div>
-              <div className="grid">
-                {guests.map((n, index) => {
-                  const taken = game.draws.find(d => d.slot === index);
-                  return <button key={n} className={'tile' + (taken ? ' taken' : '') + (pending === index ? ' chosen' : '')} disabled={!!taken || !!draw} aria-pressed={pending === index} aria-label={taken ? `格子 ${num(n)}，嘉宾 ${num(taken.guest)} 已选择` : `选择格子 ${num(n)}`} onClick={() => { setPending(index); setIdentity(null); setError(''); }}>
-                    <span className="tile-num">{num(n)}</span>
-                    <Emblem/>
-                    <span className="tile-label">{taken ? `嘉宾 ${num(taken.guest)}` : pending === index ? '已选中' : '待选择'}</span>
-                  </button>;
-                })}
-              </div>
-              <div className="controls">
-                <label>当前嘉宾 <select value={guest} onChange={e => { setGuest(Number(e.target.value)); setIdentity(null); setPending(null); setError(''); }}>{guests.map(n => <option key={n} value={n}>嘉宾 {num(n)}{game.draws.some(d => d.guest === n) ? ' · 已抽' : ''}</option>)}</select></label>
-                <div className="control-actions">
-                  {draw ? <><span className="hint">已选 {num(draw.slot + 1)} 号格</span>
-                    <button className="primary" onClick={() => { setMode('private'); setIdentity(draw.slot); }}>私密查看身份</button>
-                    {count < 8 && <button className="secondary" onClick={() => { setGuest(guests.find(n => !game.draws.some(d => d.guest === n))!); setIdentity(null); setMode('stage'); setError(''); }}>下一位</button>}
-                  </> : <><span className="hint">{pending === null ? '先选一格，再确认' : `已选 ${num(pending + 1)} 号格`}</span><button className="primary" disabled={pending === null} onClick={confirmDraw}>确认抽签</button></>}
-                </div>
-              </div>
-            </section>
-            {card && <section key={identity} className={'reveal ' + (card.team === '白' ? 'ivory' : '')} aria-live="polite">
-              <Emblem kind={card.spy ? 'spy' : 'civilian'}/>
-              <div><span className="kicker">私密身份 · 嘉宾 {num(guest)}</span><h2>{card.team}队 · {card.spy ? '卧底' : '平民'}</h2><p>{identityText(card)}</p></div>
-              <button className="secondary" onClick={() => changeMode('stage')}>收起身份</button>
-            </section>}
-          </>
-        ) : (
-          <section className="board mirror-board" aria-label="魔镜查验区">
-            <div className="mirror-visual"><Emblem kind="mirror"/><span className="kicker">THE MIRROR</span>
-              <h2 aria-live="polite">{result ? (mode === 'private' && mirrorOpen ? (result.spy ? '是卧底' : '不是卧底') : '查验已完成') : '魔镜，回答我'}</h2>
-              <p>{result ? `查验对象：嘉宾 ${num(result.guest)}` : '选择提问队伍和要查验的嘉宾。'}</p>
+        <fieldset className="operation" disabled={busy || offline}>
+          {show.phase === 'draw' && <section className="board">
+            <div className="board-top"><div><span className="kicker">DRAFT CONTROL</span><h2>{ready ? '八位嘉宾已抽签' : guestName(show.guest)}</h2></div><div className="progress"><b>{show.game.draws.length}</b><span> / 8 已抽取</span></div></div>
+            <p className="hint">{draw ? '已选 ' + String(draw.slot + 1).padStart(2, '0') + ' 号格。请确认只有当前嘉宾看向大屏。' : '嘉宾可在大屏选格，导播也可以代为点击。'}</p>
+            <div className="operator-slots">
+              {guests.map((number, slot) => {
+                const taken = show.game.draws.find(draw => draw.slot === slot);
+                return <button className="secondary" key={number} disabled={Boolean(draw || taken)}
+                  onClick={() => void send({ type: 'draw', guest: show.guest, slot })}>
+                  {String(number).padStart(2, '0')} · {taken ? guestName(taken.guest) : '选格'}
+                </button>;
+              })}
             </div>
             <div className="controls">
-              <label>提问队伍 <select value={team} onChange={e => { setTeam(e.target.value as Team); setTarget(0); setMirrorOpen(false); setError(''); }}><option value="黑">黑队 · 剩余 {game.mirror.黑 ? 0 : 1} 次</option><option value="白">白队 · 剩余 {game.mirror.白 ? 0 : 1} 次</option></select></label>
-              {result ? <button className="primary" onClick={() => { if (mirrorOpen) changeMode('stage'); else { setMode('private'); setMirrorOpen(true); } }}>{mirrorOpen ? '收起结果' : '私密查看结果'}</button>
-                : <div className="control-actions"><label>查验对象 <select value={target} onChange={e => setTarget(Number(e.target.value))}><option value={0}>选择嘉宾</option>{guests.map(n => <option key={n} value={n}>嘉宾 {num(n)}</option>)}</select></label>
-                <button className="primary" disabled={!target} onClick={() => { try { if (latest.current) save(inspectGuest(latest.current, team, target)); setMirrorOpen(mode === 'private'); setError(''); } catch (err) { setError((err as Error).message); } }}>确认查验</button></div>}
+              <span className="hint">{identityVisible ? '已发送亮牌指令，25 秒后自动收起。' : show.identityPending ? '等待大屏确认收牌，请保持大屏窗口连接。' : '可以继续现场流程。'}</span>
+              <div className="control-actions">
+                {identityVisible
+                  ? <button className="primary" onClick={() => void send({ type: 'hide-identity' })}>收起身份</button>
+                  : <button className="primary" disabled={!draw || show.identityPending} onClick={() => void send({ type: 'show-identity', guest: show.guest })}>亮身份</button>}
+                {!ready && <button className="secondary" disabled={!draw || show.identityPending} onClick={() => void send({ type: 'next-guest' })}>下一位</button>}
+              </div>
             </div>
-          </section>
-        )}
+          </section>}
+          {show.phase === 'captains' && <section className="board">
+            <h2>录入现场投票结果</h2>
+            <p className="hint">选择后，大屏立即显示队长标志。</p>
+            <div className="team-fields">{teams.map(team => (
+              <label key={team}>{team}队队长
+                <select value={show.captains[team] ?? ''} onChange={event => void send({ type: 'captain', team, guest: Number(event.target.value) })}>
+                  <option value="" disabled>选择队长</option>
+                  {members(show, team).map(guest => <option key={guest} value={guest}>{guestName(guest)}</option>)}
+                </select>
+              </label>
+            ))}</div>
+          </section>}
+          {show.phase === 'scores' && <Scores show={show} send={send}/>}
+          {show.phase === 'mirror' && <Mirror show={show} send={send}/>}
+        </fieldset>
       </main>
-      <footer><span>镜中局 / LOCAL PROTOTYPE</span><span>{mode === 'stage' ? '大屏展示 · 隐藏身份与结果' : '私密展示 · 请勿投屏'} <i/></span></footer>
-      <dialog ref={resetDialog}>
-        <h2>重新开始本局？</h2><p>已抽身份和魔镜记录将清除，并重新洗牌。</p>
-        <div className="control-actions"><button className="secondary" onClick={() => resetDialog.current?.close()} autoFocus>取消</button><button className="primary" onClick={reset}>确认重置</button></div>
+      <footer><span>镜中局 / 导播台</span><span>本机运行 · 请仅投屏舞台窗口 <i/></span></footer>
+      <dialog ref={reset}>
+        <h2>重新开始本局？</h2><p>身份、队长、分数和魔镜记录都将清空。</p>
+        <div className="control-actions">
+          <button className="secondary" onClick={() => reset.current?.close()} autoFocus>取消</button>
+          <button className="primary" disabled={busy || offline || show.identityPending} onClick={async () => { if (await send({ type: 'reset' })) reset.current?.close(); }}>确认重置</button>
+        </div>
       </dialog>
     </div>
+  );
+}
+
+function Scores({ show, send }: { show: Show; send: Send }) {
+  const [round, setRound] = useState<ScoreRound>(() => scoreRounds.find(round => !show.roundScores[round]) ?? show.screenRound ?? 2);
+  return (
+    <section className="board">
+      <div className="board-top">
+        <div><span className="kicker">SCOREBOARD CONTROL</span><h2>展示队伍分数</h2></div>
+        <span className="hint">{show.screenRound ? '大屏正在显示第 ' + show.screenRound + ' 轮' : '大屏等待发布'}</span>
+      </div>
+      <div className="round-tabs" aria-label="选择展示轮次">
+        {scoreRounds.map(number =>
+          <button key={number} className="secondary" aria-pressed={round === number} onClick={() => setRound(number)}>
+            第 {number} 轮 · {number === 2 ? '获胜队' : '落败队'}{show.roundScores[number] ? ' · 已发布' : ''}
+          </button>
+        )}
+      </div>
+      <ScoreForm key={round} round={round} show={show} send={send}/>
+    </section>
+  );
+}
+
+function ScoreForm({ round, show, send }: { round: ScoreRound; show: Show; send: Send }) {
+  const record = show.roundScores[round];
+  const [team, setTeam] = useState<Team | ''>(record?.team ?? '');
+  const [score, setScore] = useState(String(record?.score ?? ''));
+  const teamLabel = round === 2 ? '获胜队' : '落败队';
+  return (
+    <form className="score-form" onSubmit={event => {
+      event.preventDefault();
+      if (team && score !== '') void send({ type: 'publish-score', round, team, score: Number(score) });
+    }}>
+      <h3>第 {round} 轮 · {teamLabel}分数</h3>
+      <p className="hint">选择队伍并填写工作人员算好的分数，确认后上大屏。</p>
+      <div className="team-fields">
+        <label>{teamLabel}
+          <select value={team} required onChange={event => {
+            const next = event.target.value as Team | '';
+            setTeam(next);
+            setScore(next === record?.team ? String(record.score) : '');
+          }}>
+            <option value="">选择队伍</option>
+            {teams.map(team => <option key={team} value={team}>{team}队</option>)}
+          </select>
+        </label>
+        <label>队伍分数
+          <input type="number" step="any" min="-1000000" max="1000000" required value={score} onChange={event => setScore(event.target.value)}/>
+        </label>
+      </div>
+      <button className="primary" type="submit" disabled={!team || score === ''}>{record ? '重新发布分数' : '发布分数'}</button>
+    </form>
+  );
+}
+
+function Mirror({ show, send }: { show: Show; send: Send }) {
+  const [team, setTeam] = useState<Team>(show.mirrorTeam);
+  const [target, setTarget] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const result = show.game.mirror[team];
+  return (
+    <section className="board">
+      <h2>队长问魔镜</h2>
+      <p className="hint">确认后消耗该队唯一一次机会。请由导播把答案私下递给队长。</p>
+      <div className="team-fields">
+        <label>提问队伍<select value={team} onChange={event => { setTeam(event.target.value as Team); setTarget(0); setVisible(false); }}>
+          {teams.map(team => <option key={team} value={team}>{team}队 · 剩余 {show.game.mirror[team] ? 0 : 1} 次</option>)}
+        </select></label>
+        <p className="captain-label">{team}队队长 · {guestName(show.captains[team]!)}</p>
+      </div>
+      {result ? (
+        <div className="controls">
+          <span>已查验 {guestName(result.guest)} {visible && <strong className="private-answer">· {result.spy ? '是卧底' : '不是卧底'}</strong>}</span>
+          <button className="secondary" onClick={() => setVisible(!visible)}>{visible ? '收起答案' : '私下查看答案'}</button>
+        </div>
+      ) : (
+        <div className="controls">
+          <label>查验对象<select value={target} onChange={event => setTarget(Number(event.target.value))}>
+            <option value={0}>选择嘉宾</option>
+            {guests.map(guest => <option key={guest} value={guest}>{guestName(guest)}</option>)}
+          </select></label>
+          <button className="primary" disabled={!target} onClick={() => void send({ type: 'mirror', team, guest: target })}>确认查验</button>
+        </div>
+      )}
+    </section>
   );
 }
