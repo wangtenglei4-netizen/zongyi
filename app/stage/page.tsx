@@ -1,36 +1,115 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { guestName, guests, teams } from '../../lib/show.mjs';
 import type { StageView } from '../../lib/show.mjs';
-import { Emblem } from '../emblem';
 import { RolePortrait } from '../role-portrait';
 import { roleKey } from '../../lib/roles';
+import { EnvelopeFire } from './envelope-fire';
 import './stage.css';
 
 const titles = {
-  draw: '身份档案',
+  draw: '圆桌密议',
   captains: '黑白阵营',
   scores: '现场计分',
   mirror: '魔镜问话',
 } satisfies Record<StageView['phase'], string>;
 
-function Fingerprint() {
+function WaxSealMark() {
   return (
-    <svg className="dossier-print" viewBox="0 0 108 114" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-      <path d="M12 71C6 53 13 29 28 18c20-16 49-12 64 9 8 10 11 23 10 35"/>
-      <path d="M17 78c-7-20-5-39 10-53 17-17 42-16 58-1 12 12 15 27 13 43"/>
-      <path d="M21 83c-6-14-9-32 0-45 8-13 22-21 36-20 24 1 40 21 36 51l-3 11"/>
-      <path d="M27 88c-9-19-11-36 0-50 9-13 29-20 44-10 16 9 23 29 15 51l-3 10"/>
-      <path d="M33 93c-11-19-13-37-5-50 8-13 24-18 38-11 19 9 23 31 11 61"/>
-      <path d="M37 98c-6-11-12-25-10-38 2-13 12-24 26-24 15 0 26 13 26 27 0 13-6 27-9 35"/>
-      <path d="M43 101c-6-10-13-26-12-38 0-13 10-23 22-23 12 0 21 10 21 22 0 13-6 27-11 39"/>
-      <path d="M48 105c-6-14-13-28-13-40 0-11 7-20 18-20 10 0 17 8 17 18 0 12-7 28-12 41"/>
-      <path d="M53 104c-4-10-14-26-14-39 0-8 6-15 14-15 8 0 13 6 13 14 0 12-8 28-11 35"/>
-      <path d="M52 91c-3-7-9-17-9-26 0-6 4-11 10-11s9 5 9 10c0 8-4 18-7 23"/>
-      <path d="M53 81c-2-5-5-11-5-16 0-3 2-6 5-6s5 3 5 6c0 4-2 9-3 12"/>
-      <path d="M9 50c1-19 12-34 27-41M64 7c18 4 31 16 37 33M21 90l6 9m47 3 4-9m9-2 2-7M15 82l-3-7"/>
+    <>
+      <path d="M40 5c8-1 12 5 18 6 9 2 14 8 14 16 6 8 2 15 1 21 0 8-6 14-14 17-6 6-13 9-20 7-7 1-13-2-18-7-8-2-14-7-15-15-5-6-4-13 0-20 0-8 6-15 14-17 5-5 12-8 20-8Z" fill="currentColor"/>
+      <circle cx="40" cy="39" r="23" fill="none" stroke="#efd4a0" strokeWidth="1.3" opacity=".65"/>
+      <circle cx="40" cy="39" r="18" fill="none" stroke="#efd4a0" opacity=".32"/>
+      <path d="m40 24 4 11 11 4-11 4-4 11-4-11-11-4 11-4Z" fill="#efd4a0" opacity=".9"/>
+    </>
+  );
+}
+
+function WaxSeal() {
+  return <svg className="letter-wax" viewBox="0 0 80 80" aria-hidden="true"><WaxSealMark/></svg>;
+}
+
+function EnvelopePaper({ paper, team }: { paper: RefObject<SVGSVGElement | null>; team: NonNullable<StageView['identity']>['apparentTeam'] }) {
+  const gradient = useId();
+  return (
+    <svg ref={paper} className="oath-envelope" width="560" height="160" viewBox="0 0 560 160"
+      preserveAspectRatio="none" role="img" aria-label={'公开身份，' + team + '队成员'} xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id={gradient} cx=".5" cy="0" r="1">
+          <stop stopColor="#e8d6ab"/><stop offset="1" stopColor="#b69a69"/>
+        </radialGradient>
+      </defs>
+      <rect x=".5" y=".5" width="559" height="159" fill={'url(#' + gradient + ')'} stroke="#9d7653"/>
+      <path d="M1 159 233 47m326 112L328 47" fill="none" stroke="#775933" strokeOpacity=".25" strokeWidth="2.5"/>
+      <g fill="#2a2117" fontFamily="PingFang SC, Microsoft YaHei, sans-serif">
+        <text x="32" y="62" fontSize="15" letterSpacing="2.3">公开身份</text>
+        <text x="32" y="107" fontSize="37" fontWeight="750">{team}队成员</text>
+      </g>
+      <g color="#762b37" transform="translate(466 51) scale(.76)"><WaxSealMark/></g>
     </svg>
+  );
+}
+
+function SilverMirror() {
+  return (
+    <svg className="silver-mirror" viewBox="0 0 180 210" fill="none" aria-hidden="true">
+      <path d="M90 4c-8 12-19 14-28 12 1 8-5 12-13 13C29 46 18 74 18 103c0 34 13 58 34 76 8 2 13 7 10 14 10-2 21 0 28 13 8-13 19-15 28-13-3-7 2-12 10-14 21-18 34-42 34-76 0-29-11-57-31-74-8-1-14-5-13-13-9 2-20 0-28-12Z" fill="#2d3435" stroke="#b8b7a9" strokeWidth="2"/>
+      <ellipse cx="90" cy="104" rx="60" ry="80" fill="#13191f" stroke="#8e998f" strokeWidth="3"/>
+      <ellipse cx="90" cy="104" rx="53" ry="72" stroke="#c5b998" opacity=".55"/>
+      <path d="M53 113c0-30 13-55 37-72m-33 97c6-8 18-17 25-20" stroke="#c9d7ce" strokeWidth="2" opacity=".26" strokeLinecap="round"/>
+      <path d="m90 88 4 12 12 4-12 4-4 12-4-12-12-4 12-4Z" fill="#cfb580" opacity=".76"/>
+    </svg>
+  );
+}
+
+type RevealBeat = 'public' | 'burn' | 'intro' | 'role';
+
+const revealTiming = {
+  public: { next: 'burn', duration: 1050 },
+  burn: { next: 'intro', duration: 2250 },
+  intro: { next: 'role', duration: 720 },
+} satisfies Record<Exclude<RevealBeat, 'role'>, { next: RevealBeat; duration: number }>;
+
+function IdentityReveal({ identity, guest }: { identity: NonNullable<StageView['identity']>; guest: number }) {
+  const [beat, setBeat] = useState<RevealBeat>(() => identity.spy ? 'public' : 'role');
+  const paper = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    if (beat === 'role') return;
+    const { next, duration } = revealTiming[beat];
+    const timer = setTimeout(() => setBeat(next), duration);
+    return () => clearTimeout(timer);
+  }, [beat]);
+
+  const showRole = beat === 'role';
+  const showEnvelope = beat === 'public' || beat === 'burn';
+
+  return (
+    <section className={'reveal stage-identity case-reveal' + (showRole && identity.team === '白' ? ' ivory' : '')} aria-live="polite">
+      <div className="oath-body">
+        <span className="kicker">{guestName(guest)} · 仅本人查阅</span>
+        {showEnvelope && (
+          <div className="oath-envelope-area">
+            <EnvelopePaper paper={paper} team={identity.apparentTeam}/>
+            {beat === 'burn' && <EnvelopeFire paper={paper} duration={revealTiming.burn.duration}/>}
+          </div>
+        )}
+        {identity.spy && !showEnvelope && (
+          <p className={'oath-intro' + (beat === 'intro' ? ' oath-intro-alone' : '')}>你的真正的身份是</p>
+        )}
+        {showRole && (
+          <div className={identity.spy ? 'oath-role oath-unsealed' : 'oath-role'}>
+            <RolePortrait role={roleKey(identity.team, identity.spy)} spy={identity.spy}/>
+            <div>
+              <h2>{identity.title}</h2>
+              <p>{identity.text}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -115,28 +194,19 @@ export default function Stage() {
   return (
     <main className="investigation">
       <div className="investigation-frame">
-      <header className="case-header">
-        <div className="case-wordmark"><i aria-hidden="true"/> 镜中局 <span>／ MIRROR FILES</span></div>
-        <div className="case-classification"><span aria-hidden="true"/> 现场调查档案</div>
-      </header>
       <section className="case-heading">
         <div>
-          <div className="case-index"><b>卷宗 0{['draw', 'captains', 'scores', 'mirror'].indexOf(view.phase) + 1}</b><span/> 反情报行动</div>
           <h1>{titles[view.phase]}</h1>
-          {view.phase === 'draw' && <p>八份档案里，藏着两名卧底。</p>}
+          {view.phase === 'draw' && <p>八封密函里，藏着两名卧底。</p>}
         </div>
-        <div className="case-stamp" aria-hidden="true"><span>机密</span><small>RESTRICTED</small></div>
       </section>
       {!online && <p className="notice" role="status">正在重新连接，请稍候。</p>}
       {online && error && !hasDrawn && <p className="notice" role="alert">{error}</p>}
       {view.phase === 'draw' && (
-        identity ? <section className={'reveal stage-identity case-reveal ' + (identity.team === '白' ? 'ivory' : '')} aria-live="polite">
-          <RolePortrait key={view.guest} role={roleKey(identity.team, identity.spy)} spy={identity.spy}/>
-          <div><span className="kicker">{guestName(view.guest)} · 仅本人查阅</span><h2>{identity.title}</h2><p>{identity.text}</p></div>
-        </section> : <section aria-label="八格身份墙">
+        identity ? <IdentityReveal key={view.guest} identity={identity} guest={view.guest}/> : <section aria-label="八封身份密函">
           <div className="dossier-bar">
-            <p>{view.draws.length === 8 ? '八份档案已封存' : guestName(view.guest) + (hasDrawn ? ' · 档案已锁定，等待导播' : ' · 请选择一份档案')}</p>
-            <span><b>{String(view.draws.length).padStart(2, '0')}</b> / 08 已封存</span>
+            <p>{view.draws.length === 8 ? '八封密函已领取' : guestName(view.guest) + (hasDrawn ? ' · 密函已锁定，等待亮牌' : ' · 请选择一封密函')}</p>
+            <span><b>{String(view.draws.length).padStart(2, '0')}</b> / 08 已领取</span>
           </div>
           <div className="dossier-grid">
             {guests.map((number, slot) => {
@@ -146,11 +216,11 @@ export default function Stage() {
                 disabled={Boolean(taken || hasDrawn || busy || !online)}
                 aria-label={taken ? label + ' 号格 · ' + guestName(taken.guest) : '选择格子 ' + label}
                 onClick={() => void choose(view.guest, slot)}>
-                <span className="dossier-meta"><span>身份记录</span><span aria-hidden="true">M / {label}</span></span>
                 <span className="dossier-number" aria-hidden="true">{label}</span>
-                <Fingerprint/>
-                <span className="dossier-label"><span>{taken ? guestName(taken.guest) : '档案待开启'}</span>
-                  {taken ? <span className="dossier-seal">已封存</span> : <span className="dossier-redact" aria-hidden="true"/>}</span>
+                <WaxSeal/>
+                {taken && <span className="dossier-label">
+                  <span>{guestName(taken.guest)}</span><span className="dossier-seal">已领取</span>
+                </span>}
               </button>;
             })}
           </div>
@@ -160,12 +230,11 @@ export default function Stage() {
         {teams.map(team => <section className={'board stage-team ' + (team === '白' ? 'stage-white' : '')} key={team}>
           <h2>{team}队</h2>
           <ul className="stage-roster">{view.rosters?.[team].map(guest =>
-            <li key={guest}>{guestName(guest)} {view.captains[team] === guest && <strong className="badge">◆ 队长</strong>}</li>
+            <li key={guest}>{guestName(guest)} {view.captains[team] === guest && <strong className="badge">⬟ 队长</strong>}</li>
           )}</ul>
         </section>)}
       </div>}
       {view.phase === 'scores' && <section className="board stage-results">
-        <span className="kicker">SCOREBOARD</span>
         {view.score ? <>
           <h2>第 {view.screenRound} 轮 · {view.screenRound === 2 ? '获胜队' : '落败队'}分数</h2>
           <div className="stage-total"><span>{view.score.team}队</span><strong>{view.score.score}</strong></div>
@@ -173,12 +242,11 @@ export default function Stage() {
       </section>}
       {view.phase === 'mirror' && <section className="board mirror-board">
         <div className="mirror-visual" key={view.mirror?.team ?? 'waiting'}>
-          <Emblem kind="mirror"/><span className="kicker">THE MIRROR</span>
-          <h2>{view.mirror ? '魔镜已回答' : '魔镜，回答我'}</h2>
+          <SilverMirror/>
+          <h2>{view.mirror ? '魔镜已作答' : '魔镜，回答我'}</h2>
           <p>{view.mirror ? view.mirror.team + '队提问 · ' + guestName(view.mirror.guest) : '等待队长提问'}</p>
         </div>
       </section>}
-      <footer className="case-footer"><span>镜中局 / 舞台大屏</span><span>{online ? '● 现场连线' : '○ 正在重连'}</span></footer>
       </div>
     </main>
   );

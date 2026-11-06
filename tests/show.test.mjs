@@ -36,8 +36,9 @@ test('卧底亮牌标题与头像所属阵营一致，文案保留表面队伍',
     const slot = game.cards.findIndex(card => card.spy && card.team === infiltrated);
     let show = changeShow(createShow(game), { type: 'draw', guest: 1, slot }, 1000);
     show = changeShow(show, { type: 'show-identity', guest: 1 }, 1000);
-    const { team, title, text } = stageView(show, 1001).identity;
+    const { team, apparentTeam, title, text } = stageView(show, 1001).identity;
     assert.equal(team, affiliation);
+    assert.equal(apparentTeam, infiltrated);
     assert.equal(title, affiliation + '队 · 卧底');
     assert.ok(text.includes('你是' + infiltrated + '队的成员，但是你是' + affiliation + '队的卧底'));
   }
