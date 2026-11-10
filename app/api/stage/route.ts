@@ -14,12 +14,11 @@ export async function POST(request: Request) {
   const denied = authorizeMutation(request);
   if (denied) return denied;
   try {
-    const { guest, slot, hiddenRevision } = await request.json();
-    const action = Number.isInteger(hiddenRevision)
-      ? { type: 'stage-hidden' as const, revision: hiddenRevision }
-      : { type: 'draw' as const, guest, slot };
-    return json(stageView(await updateShow(action)));
+    const { hiddenRevision } = await request.json();
+    if (!Number.isInteger(hiddenRevision)) return json({ error: '请在导播台操作' }, 403);
+    return json(stageView(await updateShow({ type: 'stage-hidden', revision: hiddenRevision })));
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : '抽签失败' }, 400);
+    const message = error instanceof Error ? error.message : '收牌确认失败';
+    return json({ error: message }, message === '收牌确认已过期' ? 409 : 503);
   }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { guestName, guests, teams } from '../../lib/show.mjs';
+import { guestName, guests, teamName, teams } from '../../lib/show.mjs';
 import type { StageView } from '../../lib/show.mjs';
 import { RolePortrait } from '../role-portrait';
 import { roleKey } from '../../lib/roles';
@@ -10,11 +10,9 @@ import { EnvelopeFire } from './envelope-fire';
 import './stage.css';
 
 const titles = {
-  draw: '圆桌密议',
   captains: '黑白阵营',
   scores: '现场计分',
-  mirror: '魔镜问话',
-} satisfies Record<StageView['phase'], string>;
+} satisfies Record<'captains' | 'scores', string>;
 
 function WaxSealMark() {
   return (
@@ -31,11 +29,11 @@ function WaxSeal() {
   return <svg className="letter-wax" viewBox="0 0 80 80" aria-hidden="true"><WaxSealMark/></svg>;
 }
 
-function EnvelopePaper({ paper, team }: { paper: RefObject<SVGSVGElement | null>; team: NonNullable<StageView['identity']>['apparentTeam'] }) {
+function EnvelopePaper({ paper, team }: { paper: RefObject<SVGSVGElement | null>; team: string }) {
   const gradient = useId();
   return (
     <svg ref={paper} className="oath-envelope" width="560" height="160" viewBox="0 0 560 160"
-      preserveAspectRatio="none" role="img" aria-label={'公开身份，' + team + '队成员'} xmlns="http://www.w3.org/2000/svg">
+      preserveAspectRatio="none" role="img" aria-label={'公开身份，' + team + '成员'} xmlns="http://www.w3.org/2000/svg">
       <defs>
         <radialGradient id={gradient} cx=".5" cy="0" r="1">
           <stop stopColor="#e8d6ab"/><stop offset="1" stopColor="#b69a69"/>
@@ -45,21 +43,38 @@ function EnvelopePaper({ paper, team }: { paper: RefObject<SVGSVGElement | null>
       <path d="M1 159 233 47m326 112L328 47" fill="none" stroke="#775933" strokeOpacity=".25" strokeWidth="2.5"/>
       <g fill="#2a2117" fontFamily="PingFang SC, Microsoft YaHei, sans-serif">
         <text x="32" y="62" fontSize="15" letterSpacing="2.3">公开身份</text>
-        <text x="32" y="107" fontSize="37" fontWeight="750">{team}队成员</text>
+        <text x="32" y="107" fontSize={Math.min(37, 395 / (Array.from(team).length + 2))} fontWeight="750">{team}成员</text>
       </g>
       <g color="#762b37" transform="translate(466 51) scale(.76)"><WaxSealMark/></g>
     </svg>
   );
 }
 
-function SilverMirror() {
+function SilverMirror({ result }: { result?: 'spy' | 'clear' }) {
+  const glass = useId();
   return (
     <svg className="silver-mirror" viewBox="0 0 180 210" fill="none" aria-hidden="true">
       <path d="M90 4c-8 12-19 14-28 12 1 8-5 12-13 13C29 46 18 74 18 103c0 34 13 58 34 76 8 2 13 7 10 14 10-2 21 0 28 13 8-13 19-15 28-13-3-7 2-12 10-14 21-18 34-42 34-76 0-29-11-57-31-74-8-1-14-5-13-13-9 2-20 0-28-12Z" fill="#2d3435" stroke="#b8b7a9" strokeWidth="2"/>
       <ellipse cx="90" cy="104" rx="60" ry="80" fill="#13191f" stroke="#8e998f" strokeWidth="3"/>
+      {result && <>
+        <defs>
+          <radialGradient id={glass} cx=".45" cy=".43" r=".62">
+            <stop stopColor={result === 'spy' ? '#a3242f' : '#fffef8'}/>
+            <stop offset=".58" stopColor={result === 'spy' ? '#641221' : '#ebe9e1'}/>
+            <stop offset="1" stopColor={result === 'spy' ? '#1e060d' : '#8b979c'}/>
+          </radialGradient>
+        </defs>
+        <ellipse className="mirror-glass" cx="90" cy="104" rx="59" ry="79" fill={'url(#' + glass + ')'}/>
+      </>}
       <ellipse cx="90" cy="104" rx="53" ry="72" stroke="#c5b998" opacity=".55"/>
       <path d="M53 113c0-30 13-55 37-72m-33 97c6-8 18-17 25-20" stroke="#c9d7ce" strokeWidth="2" opacity=".26" strokeLinecap="round"/>
-      <path d="m90 88 4 12 12 4-12 4-4 12-4-12-12-4 12-4Z" fill="#cfb580" opacity=".76"/>
+      {result === 'spy' && <g className="mirror-grin">
+        <path d="M53 86q9-6 25 4-18 4-25-4Zm74-3q-9-4-25 7 18 2 25-7Z" fill="#23070d"/>
+        <path d="M50 107c20 18 61 18 80-4-11 39-57 53-80 4Z" fill="#21060c" stroke="#ee7773" strokeOpacity=".56"/>
+        <path d="M57 112c18 12 48 14 65-1-17 24-48 28-65 1Z" fill="#edb9a6"/>
+        <path d="m70 119 1 8m9-5 1 9m10-8v8m10-9-1 7m10-10-1 6" stroke="#681622" strokeWidth="1.3"/>
+      </g>}
+      {!result && <path d="m90 88 4 12 12 4-12 4-4 12-4-12-12-4 12-4Z" fill="#cfb580" opacity=".76"/>}
     </svg>
   );
 }
@@ -72,7 +87,7 @@ const revealTiming = {
   intro: { next: 'role', duration: 720 },
 } satisfies Record<Exclude<RevealBeat, 'role'>, { next: RevealBeat; duration: number }>;
 
-function IdentityReveal({ identity, guest }: { identity: NonNullable<StageView['identity']>; guest: number }) {
+function IdentityReveal({ identity, guest, team }: { identity: NonNullable<StageView['identity']>; guest: string; team: string }) {
   const [beat, setBeat] = useState<RevealBeat>(() => identity.spy ? 'public' : 'role');
   const paper = useRef<SVGSVGElement>(null);
 
@@ -89,10 +104,10 @@ function IdentityReveal({ identity, guest }: { identity: NonNullable<StageView['
   return (
     <section className={'reveal stage-identity case-reveal' + (showRole && identity.team === '白' ? ' ivory' : '')} aria-live="polite">
       <div className="oath-body">
-        <span className="kicker">{guestName(guest)} · 仅本人查阅</span>
+        <span className="kicker">{guest} · 仅本人查阅</span>
         {showEnvelope && (
           <div className="oath-envelope-area">
-            <EnvelopePaper paper={paper} team={identity.apparentTeam}/>
+            <EnvelopePaper paper={paper} team={team}/>
             {beat === 'burn' && <EnvelopeFire paper={paper} duration={revealTiming.burn.duration}/>}
           </div>
         )}
@@ -116,135 +131,112 @@ function IdentityReveal({ identity, guest }: { identity: NonNullable<StageView['
 export default function Stage() {
   const [view, setView] = useState<StageView | null>(null);
   const [online, setOnline] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    let stopped = false;
-    let poll: ReturnType<typeof setTimeout>;
-    let expire: ReturnType<typeof setTimeout>;
-    const abort = new AbortController();
-    async function refresh() {
-      const sentAt = Date.now();
-      try {
-        const response = await fetch('/api/stage', { cache: 'no-store', signal: abort.signal });
-        if (!response.ok) throw new Error('连接失败');
-        const data: StageView = await response.json();
-        if (stopped) return;
-        clearTimeout(expire);
-        if (data.identity) {
-          const remaining = data.identity.remaining - (Date.now() - sentAt);
-          if (remaining <= 0) data.identity = null;
-          else expire = setTimeout(() => setView(previous => previous ? { ...previous, identity: null } : previous), remaining);
-        }
-        setOnline(true);
-        setView(data);
-      } catch {
-        if (!stopped) {
-          setOnline(false);
-          setView(previous => previous ? { ...previous, identity: null } : previous);
-        }
-      } finally {
-        if (!stopped) poll = setTimeout(refresh, 300);
+    const stream = new EventSource('/api/stage/events');
+    let expire: ReturnType<typeof setTimeout> | undefined;
+    stream.onmessage = event => {
+      const data: StageView = JSON.parse(event.data);
+      clearTimeout(expire);
+      if (data.identity) {
+        // Also cover a stalled connection while a private identity is visible.
+        expire = setTimeout(() => {
+          setView(previous => previous === data ? { ...data, identity: null } : previous);
+        }, data.identity.remaining);
       }
-    }
-    void refresh();
+      setView(data);
+      setOnline(true);
+    };
+    stream.onerror = () => {
+      clearTimeout(expire);
+      setOnline(false);
+      setView(previous => previous?.identity ? { ...previous, identity: null } : previous);
+    };
     return () => {
-      stopped = true;
-      abort.abort();
-      clearTimeout(poll);
+      stream.close();
       clearTimeout(expire);
     };
   }, []);
 
+  const hiddenRevision = view?.hideRevision;
   useEffect(() => {
-    if (!online || view?.hideRevision == null || view.identity) return;
-    // Acknowledge only after React has removed the identity card from the stage DOM.
-    void fetch('/api/stage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hiddenRevision: view.hideRevision }),
-    }).catch(() => { /* The next stage refresh can retry. */ });
-  }, [online, view]);
+    if (!online || hiddenRevision == null) return;
+    const abort = new AbortController();
+    let retry: ReturnType<typeof setTimeout>;
+    let delay = 500;
 
-  async function choose(guest: number, slot: number) {
-    setError('');
-    setBusy(true);
-    try {
-      const response = await fetch('/api/stage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guest, slot }),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error);
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : '选格失败，请交给导播处理。');
-    } finally {
-      setBusy(false);
+    // Acknowledge only after React has removed the identity card from the stage DOM.
+    async function acknowledge() {
+      try {
+        const response = await fetch('/api/stage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hiddenRevision }),
+          signal: abort.signal,
+        });
+        if (response.ok || response.status === 409) return;
+      } catch { /* Retry a failed delivery while this revision is current. */ }
+      if (abort.signal.aborted) return;
+      retry = setTimeout(acknowledge, delay);
+      delay = Math.min(delay * 2, 4000);
     }
-  }
+
+    void acknowledge();
+    return () => {
+      abort.abort();
+      clearTimeout(retry);
+    };
+  }, [online, hiddenRevision]);
 
   if (!view) return <main className="loading">舞台画面正在准备…</main>;
   const identity = online ? view.identity : null;
-  const hasDrawn = view.draws.some(draw => draw.guest === view.guest);
+  const mirror = online ? view.mirror : null;
+  const mirrorResult = mirror ? (mirror.spy ? 'spy' : 'clear') : undefined;
+
 
   return (
     <main className="investigation">
       <div className="investigation-frame">
-      <section className="case-heading">
-        <div>
-          <h1>{titles[view.phase]}</h1>
-          {view.phase === 'draw' && <p>八封密函里，藏着两名卧底。</p>}
-        </div>
-      </section>
+      {(view.phase === 'captains' || view.phase === 'scores') && <section className="case-heading"><h1>{titles[view.phase]}</h1></section>}
       {!online && <p className="notice" role="status">正在重新连接，请稍候。</p>}
-      {online && error && !hasDrawn && <p className="notice" role="alert">{error}</p>}
       {view.phase === 'draw' && (
-        identity ? <IdentityReveal key={view.guest} identity={identity} guest={view.guest}/> : <section aria-label="八封身份密函">
-          <div className="dossier-bar">
-            <p>{view.draws.length === 8 ? '八封密函已领取' : guestName(view.guest) + (hasDrawn ? ' · 密函已锁定，等待亮牌' : ' · 请选择一封密函')}</p>
-            <span><b>{String(view.draws.length).padStart(2, '0')}</b> / 08 已领取</span>
-          </div>
+        identity ? <IdentityReveal key={view.guest} identity={identity} guest={guestName(view.guest, view.guestNames)} team={teamName(identity.apparentTeam, view.teamNames)}/> : <section className="stage-envelopes" aria-label="八封身份密函">
           <div className="dossier-grid">
             {guests.map((number, slot) => {
               const taken = view.draws.find(draw => draw.slot === slot);
               const label = String(number).padStart(2, '0');
-              return <button key={number} className={'dossier' + (taken ? ' sealed' : '')}
-                disabled={Boolean(taken || hasDrawn || busy || !online)}
-                aria-label={taken ? label + ' 号格 · ' + guestName(taken.guest) : '选择格子 ' + label}
-                onClick={() => void choose(view.guest, slot)}>
-                <span className="dossier-number" aria-hidden="true">{label}</span>
-                <WaxSeal/>
-                {taken && <span className="dossier-label">
-                  <span>{guestName(taken.guest)}</span><span className="dossier-seal">已领取</span>
-                </span>}
-              </button>;
+              return <div key={number} className={'dossier' + (taken ? ' sealed' : '')}>
+                <span className="dossier-number">{label}</span><WaxSeal/>
+              </div>;
             })}
           </div>
         </section>
       )}
       {view.phase === 'captains' && <div className="stage-teams">
         {teams.map(team => <section className={'board stage-team ' + (team === '白' ? 'stage-white' : '')} key={team}>
-          <h2>{team}队</h2>
+          <h2>{teamName(team, view.teamNames)}</h2>
           <ul className="stage-roster">{view.rosters?.[team].map(guest =>
-            <li key={guest}>{guestName(guest)} {view.captains[team] === guest && <strong className="badge">⬟ 队长</strong>}</li>
+            <li key={guest}>{guestName(guest, view.guestNames)} {view.captains[team] === guest && <strong className="badge">⬟ 队长</strong>}</li>
           )}</ul>
         </section>)}
       </div>}
       {view.phase === 'scores' && <section className="board stage-results">
         {view.score ? <>
-          <h2>第 {view.screenRound} 轮 · {view.screenRound === 2 ? '获胜队' : '落败队'}分数</h2>
-          <div className="stage-total"><span>{view.score.team}队</span><strong>{view.score.score}</strong></div>
-        </> : <p className="hint">等待导播发布队伍分数</p>}
+          <h2>{teamName(view.score.team, view.teamNames)} · 第 {view.screenRound} 轮</h2>
+          <div className="stage-teams">
+            <div className="stage-total"><span>分数</span><strong>{view.score.score}</strong></div>
+            <div className="stage-total"><span>实际分数</span><strong>{view.score.actualScore ?? '—'}</strong></div>
+          </div>
+        </> : <p className="hint">等待导播发布分数</p>}
       </section>}
-      {view.phase === 'mirror' && <section className="board mirror-board">
-        <div className="mirror-visual" key={view.mirror?.team ?? 'waiting'}>
-          <SilverMirror/>
-          <h2>{view.mirror ? '魔镜已作答' : '魔镜，回答我'}</h2>
-          <p>{view.mirror ? view.mirror.team + '队提问 · ' + guestName(view.mirror.guest) : '等待队长提问'}</p>
+      {view.phase === 'mirror' && <section className="stage-mirror" aria-label="魔镜">
+        <div className={mirrorResult ? 'mirror-reveal mirror-' + mirrorResult : 'mirror-reveal'}
+          key={mirror ? mirror.team + ':' + mirror.guest : 'waiting'}>
+          <SilverMirror result={mirrorResult}/>
+          {mirror && <div className="mirror-answer" aria-live="polite">
+            <span>{guestName(mirror.guest, view.guestNames)}</span>
+            <strong>{mirror.spy ? '是卧底' : '不是卧底'}</strong>
+          </div>}
         </div>
       </section>}
       </div>

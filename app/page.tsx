@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { isValidGame } from '../lib/game.mjs';
 import type { Team } from '../lib/game.mjs';
-import { guestName, guests, members, scoreRounds, teams } from '../lib/show.mjs';
+import { guestName, guests, members, scoreRounds, teamName, teams } from '../lib/show.mjs';
 import type { Action, ScoreRound, Show } from '../lib/show.mjs';
 import { AvatarSettings } from './avatar-settings';
 
@@ -16,12 +16,12 @@ const phases = {
 
 type Send = (action: Action) => Promise<boolean>;
 
-async function fetchShow(action?: Action): Promise<Show> {
-  const response = await fetch('/api/show', action ? {
+async function fetchShow(action: Action): Promise<Show> {
+  const response = await fetch('/api/show', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(action),
-  } : { cache: 'no-store' });
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? '无法读取场次');
   return data;
@@ -31,41 +31,47 @@ export default function Console() {
   const [show, setShow] = useState<Show | null>(null);
   const [error, setError] = useState('');
   const [offline, setOffline] = useState(false);
+  const [expiredAt, setExpiredAt] = useState(0);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const reset = useRef<HTMLDialogElement>(null);
 
   function apply(next: Show) {
-    setShow(previous => !previous || next.revision >= previous.revision ? next : previous);
+    setShow(previous => !previous || next.revision > previous.revision ? next : previous);
   }
 
   useEffect(() => {
+    const stream = new EventSource('/api/show/events');
+    let first = true;
     let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    async function refresh(first = false) {
-      try {
-        let next = await fetchShow();
-        if (first && next.revision === 0) {
-          let old: unknown;
-          try { old = JSON.parse(localStorage.getItem('zongyi.game.v1') ?? 'null'); } catch { /* Keep the new scene. */ }
-          if (isValidGame(old)) {
-            try { next = await fetchShow({ type: 'import-v1', game: old }); }
-            catch { next = await fetchShow(); }
-          }
-        }
-        if (!stopped) {
-          apply(next);
-          setOffline(false);
-        }
-      } catch {
-        if (!stopped) setOffline(true);
-      } finally {
-        if (!stopped) timer = setTimeout(refresh, 500);
+    stream.onmessage = event => {
+      const next: Show = JSON.parse(event.data);
+      apply(next);
+      setOffline(false);
+      if (!first) return;
+      first = false;
+      if (next.revision !== 0) return;
+      let old: unknown;
+      try { old = JSON.parse(localStorage.getItem('zongyi.game.v1') ?? 'null'); } catch { /* Keep the new scene. */ }
+      if (isValidGame(old)) {
+        void fetchShow({ type: 'import-v1', game: old }).then(imported => {
+          if (!stopped) apply(imported);
+        }).catch(() => { /* Another console may already have imported the game. */ });
       }
-    }
-    void refresh(true);
-    return () => { stopped = true; clearTimeout(timer); };
+    };
+    stream.onerror = () => setOffline(true);
+    return () => {
+      stopped = true;
+      stream.close();
+    };
   }, []);
+
+  const identityUntil = show?.identityUntil ?? 0;
+  useEffect(() => {
+    if (!identityUntil) return;
+    const timer = setTimeout(() => setExpiredAt(identityUntil), Math.max(0, identityUntil - Date.now()));
+    return () => clearTimeout(timer);
+  }, [identityUntil]);
 
   const send: Send = async action => {
     if (pending.current) return false;
@@ -85,7 +91,7 @@ export default function Console() {
   };
 
   if (!show) return <main className="loading">{offline ? '等待连接本地服务…' : '正在加载场次…'}</main>;
-  const identityVisible = show.identityUntil > Date.now();
+  const identityVisible = identityUntil > Date.now() && expiredAt !== identityUntil;
   const draw = show.game.draws.find(draw => draw.guest === show.guest);
   const ready = show.game.draws.length === 8;
   const captainsReady = teams.every(team => show.captains[team] !== null);
@@ -100,6 +106,7 @@ export default function Console() {
         <div className="brand"><span className="brand-mark">◇</span>镜中局 · 导播台</div>
         <div className="header-actions">
           <a className="secondary stage-link" href="/stage" target="_blank" rel="noreferrer">打开舞台大屏 ↗</a>
+          <NameSettings show={show} send={send}/>
           <AvatarSettings disabled={offline || show.identityPending}/>
           <button className="quiet" disabled={show.identityPending} onClick={() => reset.current?.showModal()}>重置本局</button>
         </div>
@@ -120,14 +127,14 @@ export default function Console() {
         {error && <p className="notice" role="alert">{error}</p>}
         <fieldset className="operation" disabled={busy || offline}>
           {show.phase === 'draw' && <section className="board">
-            <div className="board-top"><div><span className="kicker">DRAFT CONTROL</span><h2>{ready ? '八位嘉宾已抽签' : guestName(show.guest)}</h2></div><div className="progress"><b>{show.game.draws.length}</b><span> / 8 已抽取</span></div></div>
-            <p className="hint">{draw ? '已选 ' + String(draw.slot + 1).padStart(2, '0') + ' 号格。请确认只有当前嘉宾看向大屏。' : '嘉宾可在大屏选格，导播也可以代为点击。'}</p>
+            <div className="board-top"><div><span className="kicker">DRAFT CONTROL</span><h2>{ready ? '八位嘉宾已抽签' : guestName(show.guest, show.guestNames)}</h2></div><div className="progress"><b>{show.game.draws.length}</b><span> / 8 已抽取</span></div></div>
+            <p className="hint">{draw ? '已选 ' + String(draw.slot + 1).padStart(2, '0') + ' 号格。请确认只有当前嘉宾看向大屏。' : '请在导播台选格。'}</p>
             <div className="operator-slots">
               {guests.map((number, slot) => {
                 const taken = show.game.draws.find(draw => draw.slot === slot);
                 return <button className="secondary" key={number} disabled={Boolean(draw || taken)}
                   onClick={() => void send({ type: 'draw', guest: show.guest, slot })}>
-                  {String(number).padStart(2, '0')} · {taken ? guestName(taken.guest) : '选格'}
+                  {String(number).padStart(2, '0')} · {taken ? guestName(taken.guest, show.guestNames) : '选格'}
                 </button>;
               })}
             </div>
@@ -145,10 +152,10 @@ export default function Console() {
             <h2>录入现场投票结果</h2>
             <p className="hint">选择后，大屏立即显示队长标志。</p>
             <div className="team-fields">{teams.map(team => (
-              <label key={team}>{team}队队长
+              <label key={team}>{teamName(team, show.teamNames)}队长
                 <select value={show.captains[team] ?? ''} onChange={event => void send({ type: 'captain', team, guest: Number(event.target.value) })}>
                   <option value="" disabled>选择队长</option>
-                  {members(show, team).map(guest => <option key={guest} value={guest}>{guestName(guest)}</option>)}
+                  {members(show, team).map(guest => <option key={guest} value={guest}>{guestName(guest, show.guestNames)}</option>)}
                 </select>
               </label>
             ))}</div>
@@ -180,7 +187,7 @@ function Scores({ show, send }: { show: Show; send: Send }) {
       <div className="round-tabs" aria-label="选择展示轮次">
         {scoreRounds.map(number =>
           <button key={number} className="secondary" aria-pressed={round === number} onClick={() => setRound(number)}>
-            第 {number} 轮 · {number === 2 ? '获胜队' : '落败队'}{show.roundScores[number] ? ' · 已发布' : ''}
+            第 {number} 轮{show.roundScores[number] ? ' · 已发布' : ''}
           </button>
         )}
       </div>
@@ -193,30 +200,32 @@ function ScoreForm({ round, show, send }: { round: ScoreRound; show: Show; send:
   const record = show.roundScores[round];
   const [team, setTeam] = useState<Team | ''>(record?.team ?? '');
   const [score, setScore] = useState(String(record?.score ?? ''));
-  const teamLabel = round === 2 ? '获胜队' : '落败队';
+  const [actual, setActual] = useState(String(record?.actualScore ?? ''));
   return (
     <form className="score-form" onSubmit={event => {
       event.preventDefault();
-      if (team && score !== '') void send({ type: 'publish-score', round, team, score: Number(score) });
+      if (team && score !== '' && actual !== '') void send({ type: 'publish-score', round, team, score: Number(score), actualScore: Number(actual) });
     }}>
-      <h3>第 {round} 轮 · {teamLabel}分数</h3>
+      <h3>第 {round} 轮 · 分数</h3>
       <p className="hint">选择队伍并填写工作人员算好的分数，确认后上大屏。</p>
       <div className="team-fields">
-        <label>{teamLabel}
+        <label>队伍
           <select value={team} required onChange={event => {
             const next = event.target.value as Team | '';
             setTeam(next);
             setScore(next === record?.team ? String(record.score) : '');
+            setActual(next === record?.team ? String(record.actualScore ?? '') : '');
           }}>
             <option value="">选择队伍</option>
-            {teams.map(team => <option key={team} value={team}>{team}队</option>)}
+            {teams.map(team => <option key={team} value={team}>{teamName(team, show.teamNames)}</option>)}
           </select>
         </label>
-        <label>队伍分数
+        <label>分数
           <input type="number" step="any" min="-1000000" max="1000000" required value={score} onChange={event => setScore(event.target.value)}/>
         </label>
+        <label>实际分数 <input type="number" step="any" min="-1000000" max="1000000" required value={actual} onChange={event => setActual(event.target.value)}/></label>
       </div>
-      <button className="primary" type="submit" disabled={!team || score === ''}>{record ? '重新发布分数' : '发布分数'}</button>
+      <button className="primary" type="submit" disabled={!team || score === '' || actual === ''}>{record ? '重新发布分数' : '发布分数'}</button>
     </form>
   );
 }
@@ -224,32 +233,53 @@ function ScoreForm({ round, show, send }: { round: ScoreRound; show: Show; send:
 function Mirror({ show, send }: { show: Show; send: Send }) {
   const [team, setTeam] = useState<Team>(show.mirrorTeam);
   const [target, setTarget] = useState(0);
-  const [visible, setVisible] = useState(false);
   const result = show.game.mirror[team];
   return (
     <section className="board">
       <h2>队长问魔镜</h2>
-      <p className="hint">确认后消耗该队唯一一次机会。请由导播把答案私下递给队长。</p>
+      <p className="hint">确认后，嘉宾姓名和身份会显示在大屏魔镜内。</p>
       <div className="team-fields">
-        <label>提问队伍<select value={team} onChange={event => { setTeam(event.target.value as Team); setTarget(0); setVisible(false); }}>
-          {teams.map(team => <option key={team} value={team}>{team}队 · 剩余 {show.game.mirror[team] ? 0 : 1} 次</option>)}
+        <label>提问队伍<select value={team} onChange={event => { setTeam(event.target.value as Team); setTarget(0); }}>
+          {teams.map(team => <option key={team} value={team}>{teamName(team, show.teamNames)} · 剩余 {show.game.mirror[team] ? 0 : 1} 次</option>)}
         </select></label>
-        <p className="captain-label">{team}队队长 · {guestName(show.captains[team]!)}</p>
+        <p className="captain-label">{teamName(team, show.teamNames)}队长 · {guestName(show.captains[team]!, show.guestNames)}</p>
       </div>
       {result ? (
         <div className="controls">
-          <span>已查验 {guestName(result.guest)} {visible && <strong className="private-answer">· {result.spy ? '是卧底' : '不是卧底'}</strong>}</span>
-          <button className="secondary" onClick={() => setVisible(!visible)}>{visible ? '收起答案' : '私下查看答案'}</button>
+          <span>已查验 {guestName(result.guest, show.guestNames)} · {result.spy ? '卧底' : '平民'}</span>
         </div>
       ) : (
         <div className="controls">
           <label>查验对象<select value={target} onChange={event => setTarget(Number(event.target.value))}>
             <option value={0}>选择嘉宾</option>
-            {guests.map(guest => <option key={guest} value={guest}>{guestName(guest)}</option>)}
+            {guests.map(guest => <option key={guest} value={guest}>{guestName(guest, show.guestNames)}</option>)}
           </select></label>
           <button className="primary" disabled={!target} onClick={() => void send({ type: 'mirror', team, guest: target })}>确认查验</button>
         </div>
       )}
     </section>
   );
+}
+
+function NameSettings({ show, send }: { show: Show; send: Send }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  return <>
+    <button className="secondary" onClick={() => { dialog.current?.querySelector('form')?.reset(); dialog.current?.showModal(); }}>队名与嘉宾姓名</button>
+    <dialog ref={dialog}>
+      <form onSubmit={async event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const teamNames = { 黑: String(data.get('team-黑') ?? ''), 白: String(data.get('team-白') ?? '') };
+        const guestNames = Object.fromEntries(guests.map(guest => [guest, String(data.get('guest-' + guest) ?? '')]));
+        if (await send({ type: 'names', guestNames, teamNames })) dialog.current?.close();
+      }}>
+        <div className="team-fields" key={JSON.stringify([show.teamNames, show.guestNames])}>
+          {teams.map(team => <label key={team}>{team}队队名<input name={'team-' + team} maxLength={24} defaultValue={show.teamNames?.[team]} placeholder={team + '队'}/></label>)}
+          {guests.map(guest => <label key={guest}>{guestName(guest)}<input name={'guest-' + guest} maxLength={24} defaultValue={show.guestNames?.[guest]}/></label>)}
+        </div>
+        <button type="button" className="secondary" onClick={() => dialog.current?.close()}>取消</button>
+        <button className="primary">保存</button>
+      </form>
+    </dialog>
+  </>;
 }
