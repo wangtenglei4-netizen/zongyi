@@ -198,7 +198,6 @@ export default function Stage() {
     <main className="investigation">
       <div className="investigation-frame">
       {(view.phase === 'captains' || view.phase === 'scores') && <section className="case-heading"><h1>{titles[view.phase]}</h1></section>}
-      {!online && <p className="notice" role="status">正在重新连接，请稍候。</p>}
       {view.phase === 'draw' && (
         identity ? <IdentityReveal key={view.guest} identity={identity} guest={guestName(view.guest, view.guestNames)} team={teamName(identity.apparentTeam, view.teamNames)}/> : <section className="stage-envelopes" aria-label="八封身份密函">
           <div className="dossier-grid">
