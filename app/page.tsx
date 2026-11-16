@@ -103,7 +103,7 @@ export default function Console() {
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">◇</span>镜中局 · 导播台</div>
+        <div className="brand"><span className="brand-mark">◇</span>今夜不太平 导播台</div>
         <div className="header-actions">
           <a className="secondary stage-link" href="/stage" target="_blank" rel="noreferrer">打开舞台大屏 ↗</a>
           <NameSettings show={show} send={send}/>
