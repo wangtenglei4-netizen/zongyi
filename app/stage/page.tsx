@@ -7,6 +7,7 @@ import type { StageView } from '../../lib/show.mjs';
 import { RolePortrait } from '../role-portrait';
 import { roleKey } from '../../lib/roles';
 import { EnvelopeFire } from './envelope-fire';
+import { ScoreSummary } from '../score-summary';
 import './stage.css';
 
 const titles = {
@@ -50,6 +51,37 @@ function EnvelopePaper({ paper, team }: { paper: RefObject<SVGSVGElement | null>
   );
 }
 
+function OpeningEnvelope({ team, opening }: { team: string; opening: boolean }) {
+  const paper = useId();
+  return (
+    <svg className={'oath-envelope opening-envelope' + (opening ? ' is-opening' : '')}
+      viewBox="0 -105 560 265" role="img" aria-label={team + '身份信封'}>
+      <defs>
+        <linearGradient id={paper} x2="0" y2="1">
+          <stop stopColor="#ead7ae"/><stop offset="1" stopColor="#b99b6b"/>
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="558" height="158" fill="#a88c61" stroke="#9d7653"/>
+      <g className="opening-flap opening-flap-back">
+        <path d="m1 1 279 102L559 1Z" fill={'url(#' + paper + ')'} stroke="#9d7653"/>
+      </g>
+      <g className="opening-letter">
+        <rect x="30" y="10" width="500" height="140" fill="#f0e4c9" stroke="#ac926b"/>
+        <rect x="40" y="20" width="480" height="120" fill="none" stroke="#b49a70" strokeOpacity=".5"/>
+        <path d="m280 32 5 14 14 5-14 5-5 14-5-14-14-5 14-5Z" fill="#8f6a39"/>
+        <text x="280" y="104" textAnchor="middle" fill="#443321" fontSize={Math.min(30, 420 / (Array.from(team).length + 2))}
+          fontFamily="Songti SC, Georgia, serif">{team}成员</text>
+      </g>
+      <path d="M1 1 280 103 559 1v158H1Z" fill={'url(#' + paper + ')'} stroke="#9d7653"/>
+      <path d="m1 159 232-86m326 86L328 73" fill="none" stroke="#775933" strokeOpacity=".25"/>
+      <g className="opening-flap opening-flap-front">
+        <path d="m1 1 279 102L559 1Z" fill={'url(#' + paper + ')'} stroke="#9d7653"/>
+      </g>
+      <g className="opening-seal" color="#762b37" transform="translate(249 74) scale(.76)"><WaxSealMark/></g>
+    </svg>
+  );
+}
+
 function SilverMirror({ result }: { result?: 'spy' | 'clear' }) {
   const glass = useId();
   return (
@@ -88,7 +120,7 @@ const revealTiming = {
 } satisfies Record<Exclude<RevealBeat, 'role'>, { next: RevealBeat; duration: number }>;
 
 function IdentityReveal({ identity, guest, team }: { identity: NonNullable<StageView['identity']>; guest: string; team: string }) {
-  const [beat, setBeat] = useState<RevealBeat>(() => identity.spy ? 'public' : 'role');
+  const [beat, setBeat] = useState<RevealBeat>('public');
   const paper = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -107,15 +139,17 @@ function IdentityReveal({ identity, guest, team }: { identity: NonNullable<Stage
         <span className="kicker">{guest} · 仅本人查阅</span>
         {showEnvelope && (
           <div className="oath-envelope-area">
-            <EnvelopePaper paper={paper} team={team}/>
-            {beat === 'burn' && <EnvelopeFire paper={paper} duration={revealTiming.burn.duration}/>}
+            {identity.spy ? <>
+              <EnvelopePaper paper={paper} team={team}/>
+              {beat === 'burn' && <EnvelopeFire paper={paper} duration={revealTiming.burn.duration}/>}
+            </> : <OpeningEnvelope team={team} opening={beat === 'burn'}/>}
           </div>
         )}
-        {identity.spy && !showEnvelope && (
-          <p className={'oath-intro' + (beat === 'intro' ? ' oath-intro-alone' : '')}>你的真正的身份是</p>
+        {!showEnvelope && (
+          <p className={'oath-intro' + (beat === 'intro' ? ' oath-intro-alone' : '')}>{identity.spy ? '你的真正的身份是' : '你的身份是'}</p>
         )}
         {showRole && (
-          <div className={identity.spy ? 'oath-role oath-unsealed' : 'oath-role'}>
+          <div className="oath-role oath-unsealed">
             <RolePortrait role={roleKey(identity.team, identity.spy)} spy={identity.spy}/>
             <div>
               <h2>{identity.title}</h2>
@@ -135,9 +169,14 @@ export default function Stage() {
   useEffect(() => {
     const stream = new EventSource('/api/stage/events');
     let expire: ReturnType<typeof setTimeout> | undefined;
+    let mirrorExpire: ReturnType<typeof setTimeout> | undefined;
     stream.onmessage = event => {
       const data: StageView = JSON.parse(event.data);
       clearTimeout(expire);
+      clearTimeout(mirrorExpire);
+      if (data.mirror) {
+        mirrorExpire = setTimeout(() => setView(previous => previous === data ? { ...data, mirror: null } : previous), data.mirror.remaining);
+      }
       if (data.identity) {
         // Also cover a stalled connection while a private identity is visible.
         expire = setTimeout(() => {
@@ -149,12 +188,14 @@ export default function Stage() {
     };
     stream.onerror = () => {
       clearTimeout(expire);
+      clearTimeout(mirrorExpire);
       setOnline(false);
       setView(previous => previous?.identity ? { ...previous, identity: null } : previous);
     };
     return () => {
       stream.close();
       clearTimeout(expire);
+      clearTimeout(mirrorExpire);
     };
   }, []);
 
@@ -227,6 +268,9 @@ export default function Stage() {
             <div className="stage-total"><span>实际分数</span><strong>{view.score.actualScore ?? '—'}</strong></div>
           </div>
         </> : <p className="hint">等待导播发布分数</p>}
+      </section>}
+      {view.phase === 'score-summary' && <section className="stage-score-summary">
+        <ScoreSummary scores={view.scoreSummary} teamNames={view.teamNames}/>
       </section>}
       {view.phase === 'mirror' && <section className="stage-mirror" aria-label="魔镜">
         <div className={mirrorResult ? 'mirror-reveal mirror-' + mirrorResult : 'mirror-reveal'}

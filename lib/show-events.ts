@@ -60,9 +60,10 @@ export function showEvents(request: Request, project: (show: Show) => unknown, s
           clearTimeout(expiry);
           const now = Date.now();
           emit(next);
-          if (sendExpiry && next.identityUntil > now) {
+          const deadline = next.phase === 'mirror' ? next.mirrorUntil ?? 0 : next.identityUntil;
+          if (sendExpiry && deadline > now) {
             // Expiry changes the stage projection without changing the stored revision.
-            expiry = setTimeout(() => emit(next), next.identityUntil - now + 1);
+            expiry = setTimeout(() => emit(next), deadline - now + 1);
           }
         } catch {
           close();

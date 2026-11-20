@@ -9,7 +9,7 @@ test('每局两队各三平民一卧底，积分归属正确', () => {
       assert.equal(g.cards.filter(c => c.team === team && !c.spy).length, 3);
       assert.equal(g.cards.filter(c => c.team === team && c.spy).length, 1);
     }
-    g.cards.forEach(c => assert.ok(identityText(c).includes(c.spy ? `积分将计入${c.scoringTeam}队` : `${c.team}队的平民`)));
+    g.cards.forEach(c => assert.ok(identityText(c).includes(c.spy ? `你的得分属于${c.scoringTeam}队` : `你是一位特别勇敢的勇士`)));
   }
 });
 test('抽签不会重复领取，且不会修改原状态', () => {

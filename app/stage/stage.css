@@ -274,3 +274,47 @@
   .mirror-glass, .mirror-grin, .mirror-reveal .mirror-answer { animation: none; }
   .mirror-grin { opacity: 0; }
 }
+
+.stage-score-summary .score-overview { gap: clamp(12px, 2.5vw, 36px); }
+.stage-score-summary .parchment-panel { padding: clamp(10px, 3dvh, 40px); }
+.stage-score-summary .parchment-heading { padding-bottom: clamp(8px, 2dvh, 24px); }
+.stage-score-summary .parchment-heading span { font-size: clamp(12px, min(1.6vw, 3dvh), 24px); }
+.stage-score-summary .parchment-heading h3 { font-size: clamp(20px, min(3.6vw, 6dvh), 52px); }
+.stage-score-summary .score-values > div { padding: clamp(12px, 4dvh, 42px) 6px 8px; }
+.stage-score-summary .score-values dt { font-size: clamp(12px, min(2vw, 3.5dvh), 28px); }
+.stage-score-summary .score-values dd { font-size: clamp(22px, min(5vw, 10dvh), 76px); }
+
+.opening-envelope { height: clamp(160px, 32dvh, 250px); }
+.opening-flap { transform-origin: 280px 1px; }
+.opening-flap-back { visibility: hidden; }
+.is-opening .opening-flap-front { animation: envelope-flap-front 2.25s linear both; }
+.is-opening .opening-flap-back { animation: envelope-flap-back 2.25s linear both; }
+.is-opening .opening-seal { animation: envelope-seal-release 2.25s ease-out both; }
+.is-opening .opening-letter { animation: envelope-letter-rise 2.25s ease-in-out both; }
+.is-opening { animation: envelope-open-fade 2.25s ease-in-out both; }
+/* At the hinge's edge, the flap moves behind the letter instead of crossing it. */
+@keyframes envelope-flap-front {
+  0%, 8% { transform: rotateX(0); visibility: visible; }
+  26.5% { transform: rotateX(90deg); visibility: visible; }
+  26.6%, 100% { transform: rotateX(90deg); visibility: hidden; }
+}
+@keyframes envelope-flap-back {
+  0%, 26.4% { transform: rotateX(90deg); visibility: hidden; }
+  26.5% { transform: rotateX(90deg); visibility: visible; }
+  45%, 100% { transform: rotateX(180deg); visibility: visible; }
+}
+@keyframes envelope-seal-release {
+  0% { opacity: 1; }
+  20%, 100% { opacity: 0; }
+}
+@keyframes envelope-letter-rise {
+  0%, 45% { transform: translateY(0); }
+  78%, 100% { transform: translateY(-64px); }
+}
+@keyframes envelope-open-fade {
+  0%, 82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-opening, .is-opening .opening-flap, .is-opening .opening-seal, .is-opening .opening-letter { animation: none; }
+}

@@ -6,11 +6,13 @@ import type { Team } from '../lib/game.mjs';
 import { guestName, guests, members, scoreRounds, teamName, teams } from '../lib/show.mjs';
 import type { Action, ScoreRound, Show } from '../lib/show.mjs';
 import { AvatarSettings } from './avatar-settings';
+import { ScoreSummary } from './score-summary';
 
 const phases = {
   draw: '身份抽签',
   captains: '选队长',
   scores: '队伍分数',
+  'score-summary': '分数汇总',
   mirror: '魔镜问话',
 } satisfies Record<Show['phase'], string>;
 
@@ -97,6 +99,7 @@ export default function Console() {
   const captainsReady = teams.every(team => show.captains[team] !== null);
   const phaseReady = {
     draw: true, captains: ready, scores: captainsReady,
+    'score-summary': captainsReady && scoreRounds.every(round => show.roundScores[round]),
     mirror: captainsReady && scoreRounds.every(round => show.roundScores[round]),
   };
 
@@ -161,8 +164,25 @@ export default function Console() {
             ))}</div>
           </section>}
           {show.phase === 'scores' && <Scores show={show} send={send}/>}
+          {show.phase === 'score-summary' && <ScoreSummary scores={show.roundScores} teamNames={show.teamNames}/>}
           {show.phase === 'mirror' && <Mirror show={show} send={send}/>}
         </fieldset>
+        {ready && <section className="identity-summary">
+          <h2>身份</h2>
+          <div className="identity-results">{teams.map(team => <section className={'parchment-panel' + (team === '白' ? ' parchment-light' : '')} key={team}>
+            <header className="parchment-heading"><h3>{teamName(team, show.teamNames)}</h3></header>
+            <table className="identity-table">
+              <thead><tr><th>嘉宾</th><th>身份</th><th>积分归属</th></tr></thead>
+              <tbody>
+            {members(show, team).map(guest => {
+              const draw = show.game.draws.find(draw => draw.guest === guest)!;
+              const card = show.game.cards[draw.slot];
+              return <tr key={guest}><th scope="row">{guestName(guest, show.guestNames)}</th><td><span className={card.spy ? 'identity-spy' : undefined}>{card.spy ? '卧底' : '勇士'}</span></td><td>{teamName(card.scoringTeam, show.teamNames)}</td></tr>;
+            })}
+              </tbody>
+            </table>
+          </section>)}</div>
+        </section>}
       </main>
       <footer><span>镜中局 / 导播台</span><span>本机运行 · 请仅投屏舞台窗口 <i/></span></footer>
       <dialog ref={reset}>
@@ -236,8 +256,11 @@ function Mirror({ show, send }: { show: Show; send: Send }) {
   const result = show.game.mirror[team];
   return (
     <section className="board">
-      <h2>队长问魔镜</h2>
-      <p className="hint">确认后，嘉宾姓名和身份会显示在大屏魔镜内。</p>
+      <div className="board-top">
+        <h2>队长问魔镜</h2>
+        <button className="secondary" disabled={!show.mirrorUntil} onClick={() => void send({ type: 'hide-mirror' })}>收起结果</button>
+      </div>
+      <p className="hint">确认后，嘉宾姓名和身份会显示在大屏魔镜内，10 秒后自动恢复。</p>
       <div className="team-fields">
         <label>提问队伍<select value={team} onChange={event => { setTeam(event.target.value as Team); setTarget(0); }}>
           {teams.map(team => <option key={team} value={team}>{teamName(team, show.teamNames)} · 剩余 {show.game.mirror[team] ? 0 : 1} 次</option>)}

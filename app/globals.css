@@ -118,3 +118,49 @@ button:disabled{opacity:.55}
 .login-form input:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .login-form .notice{margin:14px 0 0}
 .login-form button{margin-top:16px}
+
+/* Parchment panels share the stage's dark and ivory team treatment. */
+.parchment-panel {
+  min-width: 0;
+  padding: clamp(16px, 2.4vw, 30px);
+  border: 1px solid #665748;
+  color: #eee0c7;
+  background: repeating-linear-gradient(0deg, #ffffff03 0 1px, transparent 1px 4px), #24211e;
+}
+.parchment-light {
+  border-color: #af9873;
+  color: #30271f;
+  background: radial-gradient(ellipse at 50% 0, #f1dfbd88, transparent 80%), #d9c6a1;
+}
+.parchment-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #9e866c66;
+}
+.parchment-heading span { color: #c9ad82; font-size: 13px; white-space: nowrap; }
+.parchment-light .parchment-heading span { color: #72583b; }
+.parchment-heading h3 { margin: 0; font: 700 26px / 1.3 "Songti SC", Georgia, serif; overflow-wrap: anywhere; }
+.score-overview, .identity-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.score-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.score-values > div { min-width: 0; padding: 24px 8px 8px; text-align: center; }
+.score-values > div + div { border-left: 1px solid #9e866c44; }
+.score-values dt { font-size: 14px; opacity: .75; }
+.score-values dd { margin: 12px 0 0; font: 600 clamp(28px, 4vw, 48px) / 1.1 Georgia, serif; color: #eac18b; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.parchment-light .score-values dd { color: #674527; }
+.identity-summary { margin-top: 28px; }
+.identity-summary > h2 { margin-bottom: 14px; color: #d8c09a; font: 700 22px "Songti SC", Georgia, serif; }
+.identity-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; overflow-wrap: anywhere; }
+.identity-table th, .identity-table td { padding: 13px 5px; border-bottom: 1px solid #9e866c44; text-align: left; }
+.identity-table thead th { font-weight: 400; font-size: 12px; opacity: .7; }
+.identity-table tbody th { font-weight: 600; }
+.identity-table th:first-child { width: 38%; }
+.identity-table .identity-spy { color: #f29b91; }
+.parchment-light .identity-spy { color: #8c303b; }
+@media (max-width: 620px) {
+  .identity-results { grid-template-columns: 1fr; }
+  .score-overview { gap: 10px; }
+  .score-overview .parchment-heading { flex-direction: column; gap: 6px; }
+}

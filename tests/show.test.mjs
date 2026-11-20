@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, drawCard, inspectGuest } from '../lib/game.mjs';
-import { changeShow, createShow, identityDuration, members, restoreShow, stageView } from '../lib/show.mjs';
+import { changeShow, createShow, identityDuration, mirrorDuration, members, restoreShow, stageView } from '../lib/show.mjs';
 
 function setup() {
   let game = createGame();
@@ -41,7 +41,7 @@ test('卧底亮牌标题与头像所属阵营一致，文案保留表面队伍',
     assert.equal(team, affiliation);
     assert.equal(apparentTeam, infiltrated);
     assert.equal(title, affiliation + '队 · 卧底');
-    assert.ok(text.includes('你是' + infiltrated + '队的成员，但是你是' + affiliation + '队的卧底'));
+    assert.ok(text.includes('你实际上是' + affiliation + '队成员，但会作为卧底潜伏在' + infiltrated + '队'));
   }
 });
 
@@ -93,8 +93,10 @@ test('魔镜等两次队伍分数发布后才开放，每队一次，大屏只�
   for (const team of ['黑', '白']) {
     show = changeShow(show, { type: 'mirror', team, guest: 1 });
     assert.equal(typeof show.game.mirror[team].spy, 'boolean');
-    assert.deepEqual(stageView(show).mirror, { team, guest: 1, spy: show.game.mirror[team].spy });
-    assert.throws(() => changeShow(show, { type: 'mirror', team, guest: 2 }), /已经使用/);
+    assert.deepEqual(stageView(show, show.mirrorUntil - 1).mirror, { team, guest: 1, spy: show.game.mirror[team].spy, remaining: 1 });
+    assert.throws(() => changeShow(show, { type: 'mirror', team, guest: 2 }, show.mirrorUntil), /已经使用/);
+    assert.equal(stageView(show, show.mirrorUntil).mirror, null);
+    show = { ...show, mirrorUntil: 0 };
   }
   assert.doesNotMatch(JSON.stringify(stageView(show)), /"cards"|"scoringTeam"/);
 });
@@ -111,4 +113,55 @@ test('队名和姓名随场次保存并在重置后保留', () => {
   const show = changeShow(createShow(), { type: 'names', teamNames: { 黑: ' 夜影 ', 白: '晨光' }, guestNames: { 1: ' 阿明 ' } });
   assert.equal(stageView(show).teamNames.黑, '夜影');
   assert.equal(stageView(changeShow(show, { type: 'reset' })).guestNames[1], '阿明');
+});
+
+
+test('普通身份文案不透露卧底设定，两类身份展示时长相同', () => {
+  const game = createGame();
+  for (const spy of [false, true]) {
+    const slot = game.cards.findIndex(card => card.spy === spy);
+    let show = changeShow(createShow(game), { type: 'draw', guest: 1, slot }, 1000);
+    show = changeShow(show, { type: 'show-identity', guest: 1 }, 1000);
+    assert.equal(show.identityUntil, 1000 + identityDuration);
+    const identity = stageView(show, 1000).identity;
+    if (!spy) {
+      assert.doesNotMatch(identity.title + identity.text, /平民|卧底/);
+      assert.equal(identity.text, '你是一位特别勇敢的勇士，欢迎来到阿瓦隆王国进行我们的侍卫选举！你要尽力争取胜利，为你们的队伍取得更多的积分！');
+    }
+  }
+});
+
+test('汇总只展示已有四个数值，魔镜超时恢复且保留查验记录', () => {
+  let show = setup();
+  assert.throws(() => changeShow(show, { type: 'phase', phase: 'score-summary' }), /第 2、4 轮/);
+  for (const round of [2, 4]) show = changeShow(show, { type: 'publish-score', round, team: round === 2 ? '白' : '黑', score: round * 10, actualScore: round * 9 });
+  show = changeShow(show, { type: 'phase', phase: 'score-summary' });
+  assert.deepEqual(stageView(show).scoreSummary, show.roundScores);
+  assert.doesNotMatch(JSON.stringify(stageView(show)), /"cards"|"scoringTeam"|"spy"/);
+  show = changeShow(show, { type: 'phase', phase: 'mirror' });
+  show = changeShow(show, { type: 'mirror', team: '黑', guest: 1 }, 1000);
+  assert.throws(() => changeShow(show, { type: 'mirror', team: '白', guest: 2 }, 1001), /等待/);
+  assert.equal(stageView(show, 1000 + mirrorDuration).mirror, null);
+  assert.ok(show.game.mirror.黑);
+  assert.equal(stageView(restoreShow({ ...show, mirrorUntil: undefined }), 1001).mirror, null);
+  show = changeShow(show, { type: 'mirror', team: '白', guest: 2 }, 1000 + mirrorDuration);
+  assert.equal(stageView(show, 1000 + mirrorDuration).mirror.guest, 2);
+});
+
+test('手动收起魔镜恢复默认画面，保留查验记录和已使用次数', () => {
+  let show = setup();
+  assert.throws(() => changeShow(show, { type: 'hide-mirror' }), /魔镜环节/);
+  for (const round of [2, 4]) show = changeShow(show, { type: 'publish-score', round, team: '黑', score: 10, actualScore: 9 });
+  show = changeShow(show, { type: 'phase', phase: 'mirror' });
+  show = changeShow(show, { type: 'mirror', team: '黑', guest: 1 }, 1000);
+  const record = show.game.mirror.黑;
+  const previous = show;
+  show = changeShow(show, { type: 'hide-mirror' }, 1001);
+  assert.equal(stageView(show, 1001).mirror, null);
+  assert.equal(previous.mirrorUntil, 1000 + mirrorDuration);
+  assert.equal(show.revision, previous.revision + 1);
+  assert.deepEqual(show.game.mirror.黑, record);
+  assert.throws(() => changeShow(show, { type: 'mirror', team: '黑', guest: 2 }, 1001), /已经使用/);
+  show = changeShow(show, { type: 'mirror', team: '白', guest: 2 }, 1001);
+  assert.equal(stageView(show, 1001).mirror.guest, 2);
 });

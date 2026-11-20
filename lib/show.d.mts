@@ -2,7 +2,7 @@ import type { Game, Team } from './game.mjs';
 
 export type ScoreRound = 2 | 4;
 type TeamScore = { team: Team; score: number; actualScore?: number };
-type Phase = 'draw' | 'captains' | 'scores' | 'mirror';
+type Phase = 'draw' | 'captains' | 'scores' | 'score-summary' | 'mirror';
 export type Show = {
   game: Game;
   phase: Phase;
@@ -13,13 +13,14 @@ export type Show = {
   roundScores: Record<ScoreRound, TeamScore | null>;
   screenRound: ScoreRound | null;
   mirrorTeam: Team;
+  mirrorUntil?: number;
   guestNames?: Record<number, string>;
   teamNames?: Record<Team, string>;
   revision: number;
 };
 export type Action =
   | { type: 'import-v1'; game: Game }
-  | { type: 'reset' | 'hide-identity' | 'next-guest' }
+  | { type: 'reset' | 'hide-identity' | 'next-guest' | 'hide-mirror' }
   | { type: 'draw'; guest: number; slot: number }
   | { type: 'show-identity'; guest: number }
   | { type: 'stage-hidden'; revision: number }
@@ -33,13 +34,15 @@ export type StageView = Pick<Show, 'phase' | 'guest' | 'captains' | 'screenRound
   rosters: Record<Team, number[]> | null;
   identity: { title: string; text: string; team: Team; apparentTeam: Team; spy: boolean; remaining: number } | null;
   score: TeamScore | null;
-  mirror: { team: Team; guest: number; spy: boolean } | null;
+  scoreSummary: Show['roundScores'] | null;
+  mirror: { team: Team; guest: number; spy: boolean; remaining: number } | null;
 };
 export const teams: readonly Team[];
 export const scoreRounds: readonly ScoreRound[];
 export const guests: readonly number[];
 export function guestName(guest: number, names?: Show['guestNames']): string;
 export const identityDuration: number;
+export const mirrorDuration: number;
 export function createShow(game?: Game): Show;
 export function restoreShow(saved: unknown): Show;
 export function members(show: Show, team: Team): number[];
