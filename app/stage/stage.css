@@ -330,3 +330,7 @@
 .investigation .dual-identity h2 { margin: 0; font-size: clamp(16px, min(3vw, 4.5dvh), 36px); }
 .investigation .dual-identity p { margin: 0; font-size: clamp(12px, min(1.8vw, 3dvh), 24px); line-height: 1.5; }
 .oath-panel-light .role-portrait { background: #21180f14; color: #735432; }
+
+.stage-score-summary .final-infiltrator { gap: 1dvh; padding-top: 2dvh; margin-top: 2dvh; }
+.stage-score-summary .final-infiltrator span { font-size: clamp(12px, min(1.8vw, 3dvh), 26px); }
+.stage-score-summary .final-infiltrator strong { font-size: clamp(16px, min(3vw, 4dvh), 42px); }

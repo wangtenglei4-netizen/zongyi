@@ -164,3 +164,7 @@ button:disabled{opacity:.55}
   .score-overview { gap: 10px; }
   .score-overview .parchment-heading { flex-direction: column; gap: 6px; }
 }
+
+.final-infiltrator { display: grid; gap: 10px; padding-top: 20px; margin-top: 18px; border-top: 1px solid #9e866c66; text-align: center; overflow-wrap: anywhere; }
+.final-infiltrator span { font-size: 14px; opacity: .8; }
+.final-infiltrator strong { font: 700 26px / 1.3 "Songti SC", Georgia, serif; }

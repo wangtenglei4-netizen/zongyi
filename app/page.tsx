@@ -6,7 +6,6 @@ import type { Team } from '../lib/game.mjs';
 import { guestName, guests, members, scoreRounds, teamName, teams } from '../lib/show.mjs';
 import type { Action, ScoreRound, Show } from '../lib/show.mjs';
 import { AvatarSettings } from './avatar-settings';
-import { ScoreSummary } from './score-summary';
 
 const phases = {
   draw: '身份抽签',
@@ -166,7 +165,7 @@ export default function Console() {
           </section>}
           {show.phase === 'scores' && <Scores show={show} send={send}/>}
           {show.phase === 'mirror' && <Mirror show={show} send={send}/>}
-          {show.phase === 'score-summary' && <ScoreSummary scores={show.roundScores} teamNames={show.teamNames}/>}
+          {show.phase === 'score-summary' && <FinalScores key={JSON.stringify([show.finalScores, show.finalActualScores])} show={show} send={send}/>}
         </fieldset>
         {ready && <section className="identity-summary">
           <h2>身份</h2>
@@ -249,6 +248,33 @@ function ScoreForm({ round, show, send }: { round: ScoreRound; show: Show; send:
       <button className="primary" type="submit" disabled={!team || score === '' || actual === ''}>{record ? '重新发布分数' : '发布分数'}</button>
     </form>
   );
+}
+
+function FinalScores({ show, send }: { show: Show; send: Send }) {
+  const [scores, setScores] = useState(() => Object.fromEntries(teams.map(team => [team, {
+    score: String(show.finalScores?.[team] ?? ''),
+    actualScore: String(show.finalActualScores?.[team] ?? ''),
+  }])) as Record<Team, { score: string; actualScore: string }>);
+  const complete = teams.every(team => scores[team].score !== '' && scores[team].actualScore !== '');
+  return <section className="board">
+    <form className="score-form" onSubmit={event => {
+      event.preventDefault();
+      if (complete) void send({
+        type: 'publish-final-scores',
+        scores: { 黑: Number(scores.黑.score), 白: Number(scores.白.score) },
+        actualScores: { 黑: Number(scores.黑.actualScore), 白: Number(scores.白.actualScore) },
+      });
+    }}>
+      {teams.map(team => <section key={team}>
+        <h3>{teamName(team, show.teamNames)}</h3>
+        <div className="team-fields">
+          <label>分数<input type="number" step="any" min="-1000000" max="1000000" required value={scores[team].score} onChange={event => setScores(previous => ({ ...previous, [team]: { ...previous[team], score: event.target.value } }))}/></label>
+          <label>实际分数<input type="number" step="any" min="-1000000" max="1000000" required value={scores[team].actualScore} onChange={event => setScores(previous => ({ ...previous, [team]: { ...previous[team], actualScore: event.target.value } }))}/></label>
+        </div>
+      </section>)}
+      <button className="primary" disabled={!complete}>{show.finalScores ? '重新发布分数' : '发布分数'}</button>
+    </form>
+  </section>;
 }
 
 function Mirror({ show, send }: { show: Show; send: Send }) {

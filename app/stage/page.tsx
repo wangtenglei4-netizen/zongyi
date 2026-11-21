@@ -320,7 +320,7 @@ export default function Stage() {
         </> : <p className="hint">等待导播发布分数</p>}
       </section>}
       {view.phase === 'score-summary' && <section className="stage-score-summary">
-        <ScoreSummary scores={view.scoreSummary} teamNames={view.teamNames}/>
+        <ScoreSummary summary={view.scoreSummary} teamNames={view.teamNames} guestNames={view.guestNames}/>
       </section>}
       {view.phase === 'mirror' && <section className="stage-mirror" aria-label="魔镜">
         <div className={mirrorResult ? 'mirror-reveal mirror-' + mirrorResult : 'mirror-reveal'}

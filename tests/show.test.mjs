@@ -138,7 +138,7 @@ test('汇总只展示已有四个数值，魔镜超时恢复且保留查验记�
   assert.throws(() => changeShow(show, { type: 'phase', phase: 'score-summary' }), /第 2、4 轮/);
   for (const round of [2, 4]) show = changeShow(show, { type: 'publish-score', round, team: round === 2 ? '白' : '黑', score: round * 10, actualScore: round * 9 });
   show = changeShow(show, { type: 'phase', phase: 'score-summary' });
-  assert.deepEqual(stageView(show).scoreSummary, show.roundScores);
+  assert.equal(stageView(show).scoreSummary, null);
   assert.doesNotMatch(JSON.stringify(stageView(show)), /"cards"|"scoringTeam"|"spy"/);
   show = changeShow(show, { type: 'phase', phase: 'mirror' });
   show = changeShow(show, { type: 'mirror', team: '黑', guest: 1 }, 1000);
@@ -175,4 +175,40 @@ test('手动收起魔镜恢复默认画面，保留查验记录和已使用次�
   assert.throws(() => changeShow(show, { type: 'mirror', team: '黑', guest: 2 }, 1001), /已经使用/);
   show = changeShow(show, { type: 'mirror', team: '白', guest: 2 }, 1001);
   assert.equal(stageView(show, 1001).mirror.guest, 2);
+});
+
+
+test('最终分数单独发布，卧底按潜伏队伍展示且发布前不泄露', () => {
+  let show = setup();
+  assert.throws(() => changeShow(show, { type: 'publish-final-scores', scores: { 黑: 10, 白: 20 } }), /分数汇总/);
+  for (const round of [2, 4]) show = changeShow(show, { type: 'publish-score', round, team: '黑', score: round, actualScore: round });
+  const roundScores = show.roundScores;
+  show = changeShow(show, { type: 'phase', phase: 'score-summary' });
+  assert.equal(stageView(show).scoreSummary, null);
+  for (const scores of [{ 黑: 10 }, { 黑: NaN, 白: 2 }, { 黑: 0, 白: Infinity }]) {
+    assert.throws(() => changeShow(show, { type: 'publish-final-scores', scores }), /有效/);
+  }
+  show = changeShow(show, { type: 'publish-final-scores', scores: { 黑: 0, 白: -2.5 }, actualScores: { 黑: 12, 白: 8 } });
+  assert.deepEqual(stageView(show).scoreSummary.scores, { 黑: 0, 白: -2.5 });
+  assert.deepEqual(stageView(show).scoreSummary.actualScores, { 黑: 12, 白: 8 });
+  assert.equal(stageView({ ...show, finalActualScores: undefined }).scoreSummary.actualScores, null);
+  for (const actualScores of [undefined, { 黑: 1 }, { 黑: 1, 白: Infinity }]) {
+    assert.throws(() => changeShow(show, { type: 'publish-final-scores', scores: { 黑: 1, 白: 2 }, actualScores }), /有效/);
+  }
+  for (const team of ['黑', '白']) {
+    const guest = stageView(show).scoreSummary.infiltrators[team];
+    const draw = show.game.draws.find(draw => draw.guest === guest);
+    const card = show.game.cards[draw.slot];
+    assert.equal(card.team, team);
+    assert.equal(card.spy, true);
+    assert.notEqual(card.scoringTeam, team);
+  }
+  assert.deepEqual(show.roundScores, roundScores);
+  assert.deepEqual(stageView(restoreShow(JSON.parse(JSON.stringify(show)))) .scoreSummary.scores, show.finalScores);
+  show = changeShow(show, { type: 'publish-final-scores', scores: { 黑: 100, 白: 200 }, actualScores: { 黑: 90, 白: 180 } });
+  assert.equal(stageView(show).scoreSummary.scores.白, 200);
+  assert.equal(stageView(show).scoreSummary.actualScores.白, 180);
+  assert.equal(changeShow(show, { type: 'reset' }).finalActualScores, null);
+  assert.equal(stageView(changeShow(show, { type: 'phase', phase: 'mirror' })).scoreSummary, null);
+  assert.equal(changeShow(show, { type: 'reset' }).finalScores, null);
 });

@@ -1,20 +1,25 @@
-import { scoreRounds, teamName } from '../lib/show.mjs';
-import type { Show } from '../lib/show.mjs';
+import { guestName, teams, teamName } from '../lib/show.mjs';
+import type { StageView } from '../lib/show.mjs';
 
-export function ScoreSummary({ scores, teamNames }: { scores: Show['roundScores'] | null; teamNames: Show['teamNames'] }) {
+export function ScoreSummary({ summary, teamNames, guestNames }: {
+  summary: StageView['scoreSummary'];
+  teamNames: StageView['teamNames'];
+  guestNames: StageView['guestNames'];
+}) {
   return (
     <div className="score-overview">
-      {scoreRounds.map(round => {
-        const record = scores?.[round];
-        return <section className={'parchment-panel' + (record?.team === '白' ? ' parchment-light' : '')} key={round}>
-          <header className="parchment-heading">
-            <span>第 {round} 轮</span>
-            <h3>{record ? teamName(record.team, teamNames) : '—'}</h3>
-          </header>
+      {teams.map(team => {
+        const spy = summary?.infiltrators[team];
+        return <section className={'parchment-panel' + (team === '白' ? ' parchment-light' : '')} key={team}>
+          <header className="parchment-heading"><h3>{teamName(team, teamNames)}</h3></header>
           <dl className="score-values">
-            <div><dt>分数</dt><dd>{record?.score ?? '—'}</dd></div>
-            <div><dt>实际分数</dt><dd>{record?.actualScore ?? '—'}</dd></div>
+            <div><dt>分数</dt><dd>{summary?.scores[team] ?? '—'}</dd></div>
+            <div><dt>实际分数</dt><dd>{summary?.actualScores?.[team] ?? '—'}</dd></div>
           </dl>
+          {summary && <p className="final-infiltrator">
+            <span>隐藏在{teamName(team, teamNames)}的是</span>
+            <strong>{spy == null ? '—' : guestName(spy, guestNames)}</strong>
+          </p>}
         </section>;
       })}
     </div>

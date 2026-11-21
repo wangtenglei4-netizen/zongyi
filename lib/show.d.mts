@@ -7,6 +7,8 @@ export type Show = {
   game: Game;
   phase: Phase;
   guest: number;
+  finalActualScores?: Record<Team, number> | null;
+  finalScores?: Record<Team, number> | null;
   identityUntil: number | null;
   identityPending: boolean;
   captains: Record<Team, number | null>;
@@ -29,6 +31,7 @@ export type Action =
   | { type: 'captain' | 'mirror'; team: Team; guest: number }
   | { type: 'names'; guestNames: Record<number, string>; teamNames: Record<Team, string> }
   | { type: 'publish-score'; round: ScoreRound; team: Team; score: number; actualScore: number }
+  | { type: 'publish-final-scores'; scores: Record<Team, number>; actualScores: Record<Team, number> }
   | { type: 'music'; muted: boolean };
 export type StageView = Pick<Show, 'phase' | 'guest' | 'captains' | 'screenRound' | 'guestNames' | 'teamNames' | 'musicMuted'> & {
   draws: Game['draws'];
@@ -36,7 +39,7 @@ export type StageView = Pick<Show, 'phase' | 'guest' | 'captains' | 'screenRound
   rosters: Record<Team, number[]> | null;
   identity: { title: string; text: string; team: Team; apparentTeam: Team; spy: boolean; remaining: number | null } | null;
   score: TeamScore | null;
-  scoreSummary: Show['roundScores'] | null;
+  scoreSummary: { scores: Record<Team, number>; actualScores: Record<Team, number> | null; infiltrators: Record<Team, number | null> } | null;
   mirror: { team: Team; guest: number; spy: boolean; remaining: number } | null;
 };
 export const teams: readonly Team[];
