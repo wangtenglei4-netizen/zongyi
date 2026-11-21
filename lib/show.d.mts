@@ -14,6 +14,7 @@ export type Show = {
   screenRound: ScoreRound | null;
   mirrorTeam: Team;
   mirrorUntil?: number;
+  musicMuted?: boolean;
   guestNames?: Record<number, string>;
   teamNames?: Record<Team, string>;
   revision: number;
@@ -27,8 +28,9 @@ export type Action =
   | { type: 'phase'; phase: Phase }
   | { type: 'captain' | 'mirror'; team: Team; guest: number }
   | { type: 'names'; guestNames: Record<number, string>; teamNames: Record<Team, string> }
-  | { type: 'publish-score'; round: ScoreRound; team: Team; score: number; actualScore: number };
-export type StageView = Pick<Show, 'phase' | 'guest' | 'captains' | 'screenRound' | 'guestNames' | 'teamNames'> & {
+  | { type: 'publish-score'; round: ScoreRound; team: Team; score: number; actualScore: number }
+  | { type: 'music'; muted: boolean };
+export type StageView = Pick<Show, 'phase' | 'guest' | 'captains' | 'screenRound' | 'guestNames' | 'teamNames' | 'musicMuted'> & {
   draws: Game['draws'];
   hideRevision: number | null;
   rosters: Record<Team, number[]> | null;

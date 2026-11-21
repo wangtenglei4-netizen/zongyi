@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { passwordRequired, safeNext, sessionCookie, sessionMatches } from './lib/session';
 
+const backgroundMusic = new Set(['/shenfen_leader.mp3', '/mojing.mp3', '/banjiang.mp3']);
+
 export function proxy(request: NextRequest) {
-  if (!passwordRequired()) return NextResponse.next();
-  const signedIn = sessionMatches(request.cookies.get(sessionCookie)?.value);
   const { pathname } = request.nextUrl;
+  if (backgroundMusic.has(pathname) || !passwordRequired()) return NextResponse.next();
+  const signedIn = sessionMatches(request.cookies.get(sessionCookie)?.value);
   if (pathname === '/login') {
     if (!signedIn) return NextResponse.next();
     return NextResponse.redirect(new URL(safeNext(request.nextUrl.searchParams.get('next')), request.url));

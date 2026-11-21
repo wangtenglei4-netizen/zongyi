@@ -148,6 +148,15 @@ test('汇总只展示已有四个数值，魔镜超时恢复且保留查验记�
   assert.equal(stageView(show, 1000 + mirrorDuration).mirror.guest, 2);
 });
 
+test('静音只改变播放开关，重置后仍保持', () => {
+  const show = changeShow(createShow(), { type: 'music', muted: true });
+  assert.equal(show.musicMuted, true);
+  assert.equal(stageView(show).musicMuted, true);
+  assert.equal(changeShow(show, { type: 'reset' }).musicMuted, true);
+  assert.equal(stageView(createShow()).musicMuted, false);
+  assert.throws(() => changeShow(show, { type: 'music', muted: 'yes' }), /静音/);
+});
+
 test('手动收起魔镜恢复默认画面，保留查验记录和已使用次数', () => {
   let show = setup();
   assert.throws(() => changeShow(show, { type: 'hide-mirror' }), /魔镜环节/);

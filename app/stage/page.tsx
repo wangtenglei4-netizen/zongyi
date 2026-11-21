@@ -162,6 +162,40 @@ function IdentityReveal({ identity, guest, team }: { identity: NonNullable<Stage
   );
 }
 
+function stageTrack(phase: StageView['phase']) {
+  if (phase === 'draw' || phase === 'captains') return '/shenfen_leader.mp3';
+  if (phase === 'mirror') return '/mojing.mp3';
+  if (phase === 'score-summary') return '/banjiang.mp3';
+  return '';
+}
+
+function StageMusic({ phase, muted }: { phase: StageView['phase']; muted: boolean }) {
+  const audio = useRef<HTMLAudioElement>(null);
+  const track = stageTrack(phase);
+
+  useEffect(() => {
+    const element = audio.current;
+    if (!element) return;
+    element.muted = muted;
+    if (!track) {
+      element.pause();
+      if (element.getAttribute('src')) {
+        element.removeAttribute('src');
+        element.load();
+      }
+      return;
+    }
+    const next = new URL(track, location.href).href;
+    if (element.src !== next) element.src = next;
+    const resume = () => void element.play().catch(() => {});
+    resume();
+    window.addEventListener('pointerdown', resume);
+    return () => window.removeEventListener('pointerdown', resume);
+  }, [track, muted]);
+
+  return <audio ref={audio} loop preload="auto" hidden aria-hidden="true"/>;
+}
+
 export default function Stage() {
   const [view, setView] = useState<StageView | null>(null);
   const [online, setOnline] = useState(true);
@@ -237,6 +271,7 @@ export default function Stage() {
 
   return (
     <main className="investigation">
+      <StageMusic phase={view.phase} muted={view.musicMuted === true}/>
       <div className="investigation-frame">
       {(view.phase === 'captains' || view.phase === 'scores') && <section className="case-heading"><h1>{titles[view.phase]}</h1></section>}
       {view.phase === 'draw' && (
@@ -262,7 +297,7 @@ export default function Stage() {
       </div>}
       {view.phase === 'scores' && <section className="board stage-results">
         {view.score ? <>
-          <h2>{teamName(view.score.team, view.teamNames)} · 第 {view.screenRound} 轮</h2>
+          <h2>{teamName(view.score.team, view.teamNames)} -  第 {view.screenRound} 轮</h2>
           <div className="stage-teams">
             <div className="stage-total"><span>分数</span><strong>{view.score.score}</strong></div>
             <div className="stage-total"><span>实际分数</span><strong>{view.score.actualScore ?? '—'}</strong></div>

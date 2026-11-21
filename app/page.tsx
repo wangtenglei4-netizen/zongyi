@@ -111,6 +111,7 @@ export default function Console() {
           <a className="secondary stage-link" href="/stage" target="_blank" rel="noreferrer">打开舞台大屏 ↗</a>
           <NameSettings show={show} send={send}/>
           <AvatarSettings disabled={offline || show.identityPending}/>
+          <button className="quiet" type="button" aria-pressed={show.musicMuted === true} disabled={busy || offline} onClick={() => void send({ type: 'music', muted: show.musicMuted !== true })}>{show.musicMuted ? '恢复音乐' : '静音'}</button>
           <button className="quiet" disabled={show.identityPending} onClick={() => reset.current?.showModal()}>重置本局</button>
         </div>
       </header>
