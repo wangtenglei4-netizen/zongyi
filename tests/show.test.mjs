@@ -13,7 +13,7 @@ function setup() {
   return changeShow(show, { type: 'phase', phase: 'scores' });
 }
 
-test('亮牌只投当前嘉宾，收牌或超时后不再返回身份', () => {
+test('亮牌只投当前嘉宾，手动收牌后不再返回身份', () => {
   let show = changeShow(createShow(), { type: 'draw', guest: 1, slot: 0 }, 1000);
   assert.equal(stageView(show, 1000).identity, null);
   show = changeShow(show, { type: 'show-identity', guest: 1 }, 1000);
@@ -21,6 +21,8 @@ test('亮牌只投当前嘉宾，收牌或超时后不再返回身份', () => {
   assert.ok(stageView(show, 1001).identity?.title);
   assert.throws(() => changeShow(show, { type: 'next-guest' }, 1001), /大屏确认/);
   assert.equal(stageView(show, 1000 + identityDuration).identity, null);
+  const legacy = { ...show, identityUntil: 1000 + identityDuration };
+  assert.equal(stageView(legacy, 1000 + identityDuration).identity, null);
   show = changeShow(show, { type: 'hide-identity' }, 1002);
   assert.throws(() => changeShow(show, { type: 'next-guest' }, 1002), /大屏确认/);
   assert.throws(() => changeShow(show, { type: 'stage-hidden', revision: show.revision - 1 }, 1002), /过期/);
@@ -116,7 +118,7 @@ test('队名和姓名随场次保存并在重置后保留', () => {
 });
 
 
-test('普通身份文案不透露卧底设定，两类身份展示时长相同', () => {
+test('普通身份文案不透露卧底设定，两类身份总时长均为25秒且可提前收起', () => {
   const game = createGame();
   for (const spy of [false, true]) {
     const slot = game.cards.findIndex(card => card.spy === spy);

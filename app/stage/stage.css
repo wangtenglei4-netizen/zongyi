@@ -319,3 +319,14 @@
 @media (prefers-reduced-motion: reduce) {
   .is-opening, .is-opening .opening-flap, .is-opening .opening-seal, .is-opening .opening-letter { animation: none; }
 }
+
+.dual-identity .oath-body { width: 100%; }
+.oath-comparison { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(10px, 2vw, 28px); margin-top: 16px; }
+.oath-identity-panel { display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 1dvh, 12px); min-width: 0; padding: clamp(10px, 2dvh, 24px); border: 1px solid #665748; background: #28231f; color: #eee0c7; overflow-wrap: anywhere; }
+.oath-panel-light { background: #d9c6a1; color: #30271f; border-color: #af9873; }
+.oath-panel-label { color: #d8bd94; font-size: clamp(12px, min(1.5vw, 3dvh), 20px); letter-spacing: .12em; }
+.oath-panel-light .oath-panel-label { color: #72583b; }
+.investigation .dual-identity .role-portrait { width: min(13vw, 18dvh, 155px); }
+.investigation .dual-identity h2 { margin: 0; font-size: clamp(16px, min(3vw, 4.5dvh), 36px); }
+.investigation .dual-identity p { margin: 0; font-size: clamp(12px, min(1.8vw, 3dvh), 24px); line-height: 1.5; }
+.oath-panel-light .role-portrait { background: #21180f14; color: #735432; }

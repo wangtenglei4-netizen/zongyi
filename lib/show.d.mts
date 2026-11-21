@@ -7,7 +7,7 @@ export type Show = {
   game: Game;
   phase: Phase;
   guest: number;
-  identityUntil: number;
+  identityUntil: number | null;
   identityPending: boolean;
   captains: Record<Team, number | null>;
   roundScores: Record<ScoreRound, TeamScore | null>;
@@ -34,7 +34,7 @@ export type StageView = Pick<Show, 'phase' | 'guest' | 'captains' | 'screenRound
   draws: Game['draws'];
   hideRevision: number | null;
   rosters: Record<Team, number[]> | null;
-  identity: { title: string; text: string; team: Team; apparentTeam: Team; spy: boolean; remaining: number } | null;
+  identity: { title: string; text: string; team: Team; apparentTeam: Team; spy: boolean; remaining: number | null } | null;
   score: TeamScore | null;
   scoreSummary: Show['roundScores'] | null;
   mirror: { team: Team; guest: number; spy: boolean; remaining: number } | null;

@@ -68,7 +68,7 @@ export default function Console() {
     };
   }, []);
 
-  const identityUntil = show?.identityUntil ?? 0;
+  const identityUntil = show ? show.identityUntil : 0;
   useEffect(() => {
     if (!identityUntil) return;
     const timer = setTimeout(() => setExpiredAt(identityUntil), Math.max(0, identityUntil - Date.now()));
@@ -93,7 +93,7 @@ export default function Console() {
   };
 
   if (!show) return <main className="loading">{offline ? '等待连接本地服务…' : '正在加载场次…'}</main>;
-  const identityVisible = identityUntil > Date.now() && expiredAt !== identityUntil;
+  const identityVisible = identityUntil === null || (identityUntil > Date.now() && expiredAt !== identityUntil);
   const draw = show.game.draws.find(draw => draw.guest === show.guest);
   const ready = show.game.draws.length === 8;
   const captainsReady = teams.every(team => show.captains[team] !== null);
@@ -143,7 +143,7 @@ export default function Console() {
               })}
             </div>
             <div className="controls">
-              <span className="hint">{identityVisible ? '已发送亮牌指令，25 秒后自动收起。' : show.identityPending ? '等待大屏确认收牌，请保持大屏窗口连接。' : '可以继续现场流程。'}</span>
+              <span className="hint">{identityVisible ? '身份展示中，25 秒后自动收起，也可手动收起。' : show.identityPending ? '等待大屏确认收牌，请保持大屏窗口连接。' : '可以继续现场流程。'}</span>
               <div className="control-actions">
                 {identityVisible
                   ? <button className="primary" onClick={() => void send({ type: 'hide-identity' })}>收起身份</button>

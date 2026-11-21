@@ -77,6 +77,7 @@ function OpeningEnvelope({ team, opening }: { team: string; opening: boolean }) 
       <g className="opening-flap opening-flap-front">
         <path d="m1 1 279 102L559 1Z" fill={'url(#' + paper + ')'} stroke="#9d7653"/>
       </g>
+      <text className="opening-team" x="30" y="132" fill="#443321" fontSize={Math.min(26, 390 / (Array.from(team).length + 2))} fontFamily="Songti SC, Georgia, serif">{team}成员</text>
       <g className="opening-seal" color="#762b37" transform="translate(249 74) scale(.76)"><WaxSealMark/></g>
     </svg>
   );
@@ -114,9 +115,9 @@ function SilverMirror({ result }: { result?: 'spy' | 'clear' }) {
 type RevealBeat = 'public' | 'burn' | 'intro' | 'role';
 
 const revealTiming = {
-  public: { next: 'burn', duration: 1050 },
+  public: { next: 'burn', duration: 2000 },
   burn: { next: 'intro', duration: 2250 },
-  intro: { next: 'role', duration: 720 },
+  intro: { next: 'role', duration: 750 },
 } satisfies Record<Exclude<RevealBeat, 'role'>, { next: RevealBeat; duration: number }>;
 
 function IdentityReveal({ identity, guest, team }: { identity: NonNullable<StageView['identity']>; guest: string; team: string }) {
@@ -134,7 +135,7 @@ function IdentityReveal({ identity, guest, team }: { identity: NonNullable<Stage
   const showEnvelope = beat === 'public' || beat === 'burn';
 
   return (
-    <section className={'reveal stage-identity case-reveal' + (showRole && identity.team === '白' ? ' ivory' : '')} aria-live="polite">
+    <section className={'reveal stage-identity case-reveal' + (showRole && !identity.spy && identity.team === '白' ? ' ivory' : '') + (showRole && identity.spy ? ' dual-identity' : '')} aria-live="polite">
       <div className="oath-body">
         <span className="kicker">{guest} · 仅本人查阅</span>
         {showEnvelope && (
@@ -145,18 +146,32 @@ function IdentityReveal({ identity, guest, team }: { identity: NonNullable<Stage
             </> : <OpeningEnvelope team={team} opening={beat === 'burn'}/>}
           </div>
         )}
-        {!showEnvelope && (
+        {!showEnvelope && (!showRole || !identity.spy) && (
           <p className={'oath-intro' + (beat === 'intro' ? ' oath-intro-alone' : '')}>{identity.spy ? '你的真正的身份是' : '你的身份是'}</p>
         )}
-        {showRole && (
+        {showRole && (identity.spy ? (
+          <div className="oath-comparison oath-unsealed">
+            <section className={'oath-identity-panel' + (identity.apparentTeam === '白' ? ' oath-panel-light' : '')}>
+              <span className="oath-panel-label">公开身份</span>
+              <RolePortrait role={roleKey(identity.apparentTeam, false)} spy={false}/>
+              <h2>{team}成员</h2>
+            </section>
+            <section className={'oath-identity-panel' + (identity.team === '白' ? ' oath-panel-light' : '')}>
+              <span className="oath-panel-label">真实身份</span>
+              <RolePortrait role={roleKey(identity.team, true)} spy={true}/>
+              <h2>{identity.title}</h2>
+              <p>{identity.text}</p>
+            </section>
+          </div>
+        ) : (
           <div className="oath-role oath-unsealed">
-            <RolePortrait role={roleKey(identity.team, identity.spy)} spy={identity.spy}/>
+            <RolePortrait role={roleKey(identity.team, false)} spy={false}/>
             <div>
               <h2>{identity.title}</h2>
               <p>{identity.text}</p>
             </div>
           </div>
-        )}
+        ))}
       </div>
     </section>
   );
@@ -211,7 +226,7 @@ export default function Stage() {
       if (data.mirror) {
         mirrorExpire = setTimeout(() => setView(previous => previous === data ? { ...data, mirror: null } : previous), data.mirror.remaining);
       }
-      if (data.identity) {
+      if (data.identity && data.identity.remaining !== null) {
         // Also cover a stalled connection while a private identity is visible.
         expire = setTimeout(() => {
           setView(previous => previous === data ? { ...data, identity: null } : previous);
