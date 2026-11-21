@@ -12,8 +12,8 @@ const phases = {
   draw: '身份抽签',
   captains: '选队长',
   scores: '队伍分数',
-  'score-summary': '分数汇总',
   mirror: '魔镜问话',
+  'score-summary': '分数汇总',
 } satisfies Record<Show['phase'], string>;
 
 type Send = (action: Action) => Promise<boolean>;
@@ -99,8 +99,8 @@ export default function Console() {
   const captainsReady = teams.every(team => show.captains[team] !== null);
   const phaseReady = {
     draw: true, captains: ready, scores: captainsReady,
-    'score-summary': captainsReady && scoreRounds.every(round => show.roundScores[round]),
     mirror: captainsReady && scoreRounds.every(round => show.roundScores[round]),
+    'score-summary': captainsReady && scoreRounds.every(round => show.roundScores[round]),
   };
 
   return (
@@ -164,8 +164,8 @@ export default function Console() {
             ))}</div>
           </section>}
           {show.phase === 'scores' && <Scores show={show} send={send}/>}
-          {show.phase === 'score-summary' && <ScoreSummary scores={show.roundScores} teamNames={show.teamNames}/>}
           {show.phase === 'mirror' && <Mirror show={show} send={send}/>}
+          {show.phase === 'score-summary' && <ScoreSummary scores={show.roundScores} teamNames={show.teamNames}/>}
         </fieldset>
         {ready && <section className="identity-summary">
           <h2>身份</h2>

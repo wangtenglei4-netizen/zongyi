@@ -168,8 +168,9 @@
 .oath-body { width: min(100%, 740px); text-align: center; }
 .oath-role > div:last-child { min-width: 0; overflow-wrap: anywhere; }
 .investigation .stage-identity .role-portrait { width: min(20vw, 31dvh, 250px); }
-.investigation .stage-identity h2 { font-size: clamp(19px, min(4vw, 7dvh), 50px); }
+.investigation .stage-identity h2 { font-size: clamp(21px, calc(min(4vw, 7dvh) + 2px), 52px); }
 .investigation .stage-identity p { font-size: clamp(13px, min(2.1vw, 4dvh), 29px); }
+.investigation .stage-identity .oath-role p { font-size: clamp(15px, calc(min(2.1vw, 4dvh) + 2px), 31px); }
 .oath-envelope-area {
   position: relative;
   isolation: isolate;
